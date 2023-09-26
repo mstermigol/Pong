@@ -7,17 +7,18 @@
 #include <arpa/inet.h>
 #include <ncurses.h>
 
-int main(int argc, char **argv)
+int main(int argc, char **argv, int player)
 {
 
-    if (argc != 2)
+    if (argc != 3)
     {
-        printf("Usage: %s <port>\n", argv[0]);
+        printf("Usage: %s <port> <player_id>\n", argv[0]);
         exit(0);
     }
 
     char *ip = "127.0.0.1";
     int port = atoi(argv[1]);
+    int playerId = atoi(argv[2]);
 
     int socketFileDescriptor;
     struct sockaddr_in address;
@@ -40,13 +41,13 @@ int main(int argc, char **argv)
         if (ch == 'w')
         {
             bzero(buffer, 1024);
-            strcpy(buffer, "UP");
+            sprintf(buffer, "Player: %i UP", playerId);
             sendto(socketFileDescriptor, buffer, 1024, 0, (struct sockaddr *)&address, sizeof(address));
         }
         if (ch == 's')
         {
             bzero(buffer, 1024);
-            strcpy(buffer, "DOWN");
+            sprintf(buffer, "Player: %i DOWN", playerId);
             sendto(socketFileDescriptor, buffer, 1024, 0, (struct sockaddr *)&address, sizeof(address));
         }
     }
