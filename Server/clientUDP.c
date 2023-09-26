@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <ncurses.h>
 
 int main(int argc, char **argv)
 {
@@ -29,14 +30,27 @@ int main(int argc, char **argv)
     address.sin_port = htons(port);
     address.sin_addr.s_addr = inet_addr(ip);
 
+    initscr();
+    cbreak();
+    noecho();
+
     while (1)
     {
-        bzero(buffer, 1024);
-        fgets(buffer, 1024, stdin);
-        buffer[strcspn(buffer, "\n")] = 0;
-        sendto(socketFileDescriptor, buffer, 1024, 0, (struct sockaddr *)&address, sizeof(address));
-        printf("[+]Data send: %s\n", buffer);
+        int ch = getch();
+        if (ch == 'w')
+        {
+            bzero(buffer, 1024);
+            strcpy(buffer, "UP");
+            sendto(socketFileDescriptor, buffer, 1024, 0, (struct sockaddr *)&address, sizeof(address));
+        }
+        if (ch == 's')
+        {
+            bzero(buffer, 1024);
+            strcpy(buffer, "DOWN");
+            sendto(socketFileDescriptor, buffer, 1024, 0, (struct sockaddr *)&address, sizeof(address));
+        }
     }
+    endwin();
 
     return 0;
 }
