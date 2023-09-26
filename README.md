@@ -5,3 +5,9 @@ Para ejecutar el cliente se debe ubicar en la carpeta Cliente y escribir el sigu
 ```
 ./pong
 ```
+
+Se debe instalar lo siguiente (en fedora)
+
+```
+sudo dnf install ncurses-devel
+```
