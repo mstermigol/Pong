@@ -3,22 +3,37 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "SDL2/SDL.h"
 #include "config.h"
 
 typedef struct
 {
+    int x, y;
+    int w, h;
+} Paddle;
+
+typedef struct
+{
+    int x, y;
+    int w, h;
+} Ball;
+
+typedef struct
+{
     int socket;
-    int paddle_y;
+    int paddleY;
     int score;
 } Player;
 
 typedef struct
 {
     Player players[MAX_CLIENTS];
-    int ball_x;
-    int ball_y;
-    int ball_dx;
-    int ball_dy;
+    int ballX;
+    int ballY;
+    int ballDx;
+    int ballDy;
 } GameSession;
+
+static SDL_Surface *screen;
 
 #endif
