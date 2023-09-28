@@ -1,3 +1,6 @@
+#ifndef SOCKET_H
+#define SOCKET_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -37,3 +40,5 @@ int Sendto(int socketFD, const void *buffer, size_t length, int flags, const str
     }
     return ret;
 }
+
+#endif
