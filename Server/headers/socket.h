@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include <unistd.h>
+#include <signal.h>
 
 int Socket(int family, int type, int protocol) {
     int ret = socket(family, type, protocol);
@@ -39,6 +41,29 @@ int Sendto(int socketFD, const void *buffer, size_t length, int flags, const str
         exit(1);
     }
     return ret;
+}
+
+int Close(int socketFD) {
+    int ret = close(socketFD);
+    if (ret < 0) {
+        perror("close");
+        exit(1);
+    }
+    return ret;
+}
+
+int Shutdown(int socketFD, int how) {
+    int ret = shutdown(socketFD, how);
+    if (ret < 0) {
+        perror("shutdown");
+        exit(1);
+    }
+    return ret;
+}
+
+void HandleShutdownSignal(int socketFD) {
+    Close(socketFD);
+    exit(0);
 }
 
 #endif
