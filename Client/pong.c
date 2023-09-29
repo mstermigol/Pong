@@ -69,7 +69,7 @@ int CheckCollision(GameState game, int player)
 	bottomOfTheBall = game.ballY + BALL_HEIGHT;
 
 	leftOfPaddle = paddleX;
-	rightOfPaddle = paddleY + PADDLE_WIDTH;
+	rightOfPaddle = paddleX + PADDLE_WIDTH;
 	topOfThePaddle = paddleY;
 	bottomOfThePaddle = paddleY + PADDLE_HEIGHT;
 
@@ -142,6 +142,7 @@ GameState MoveBall(GameState game)
 		}
 
 		int collision = CheckCollision(game, player);
+		printf("collision: %d\n", collision);
 
 		// collision detected
 		if (collision == 1)
