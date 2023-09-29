@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define MAX_CLIENTS 4
 #define MAX_NICKNAME_LENGTH 20
 #define MAX_SESSIONS 2
 
@@ -58,7 +57,7 @@ int main(int argc, char *argv[]) {
 
     printf("Server is running and listening on port %d...\n", atoi(argv[1]));
 
-    struct ClientInfo clients[MAX_CLIENTS];
+    struct ClientInfo clients[MAX_SESSIONS*2];
     int numClients = 0;
 
     struct Session sessions[MAX_SESSIONS];
@@ -89,7 +88,7 @@ int main(int argc, char *argv[]) {
         if (nicknameExists) {
             printf("Nickname %s already exists. Ignoring new connection request.\n", nickname);
         } else {
-            if (numClients < MAX_CLIENTS) {
+            if (numClients < MAX_SESSIONS*2) {
                 strncpy(clients[numClients].nickname, nickname, MAX_NICKNAME_LENGTH);
                 memcpy(&clients[numClients].clientAddr, &clientAddr, sizeof(clientAddr));
                 numClients++;
