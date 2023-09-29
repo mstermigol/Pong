@@ -108,14 +108,14 @@ GameState MoveBall(GameState game)
 	if (game.ballX < 0)
 	{
 
-		game.score1 += 1;
+		game.score2 += 1;
 		game = InitGame(game);
 	}
 
 	if (game.ballX > screen->w - 10)
 	{
 
-		game.score2 += 1;
+		game.score1 += 1;
 		game = InitGame(game);
 	}
 
@@ -142,7 +142,6 @@ GameState MoveBall(GameState game)
 		}
 
 		int collision = CheckCollision(game, player);
-		printf("collision: %d\n", collision);
 
 		// collision detected
 		if (collision == 1)
