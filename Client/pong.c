@@ -13,7 +13,6 @@
 int init(int w, int h, int argc, char *args[]);
 
 // Program globals
-GameState game;
 
 SDL_Window *window = NULL; // The window we'll be rendering to
 SDL_Renderer *renderer;	   // The renderer SDL will use to draw to the screen
@@ -25,10 +24,10 @@ static SDL_Surface *numbermap;
 static SDL_Surface *end;
 
 // textures
-SDL_Texture *screen_texture;
+SDL_Texture *screenTexture;
 
 // inisilise starting position and sizes of game elemements
-static void InitGame()
+GameState InitGame(GameState game)
 {
 
 	game.ballX = screen->w / 2;
@@ -36,11 +35,10 @@ static void InitGame()
 	game.ballDy = 1;
 	game.ballDx = 1;
 
-	game.paddle1X = 20;
 	game.paddle1Y = screen->h / 2 - 50;
-
-	game.paddle2X = screen->w - 20 - 10;
 	game.paddle2Y = screen->h / 2 - 50;
+
+	return game;
 }
 
 // if return value is 1 collision occured. if return is 0, no collision.
@@ -49,10 +47,13 @@ int CheckCollision(GameState game, int player)
 	int paddleY;
 	int paddleX;
 
-	if (player == 0){
+	if (player == 0)
+	{
 		paddleY = game.paddle1Y;
 		paddleX = PADDLE_1_X;
-	} else {
+	}
+	else
+	{
 		paddleY = game.paddle2Y;
 		paddleX = PADDLE_2_X;
 	}
@@ -96,7 +97,7 @@ int CheckCollision(GameState game, int player)
 }
 
 /* This routine moves each ball by its motion vector. */
-static void MoveBall()
+GameState MoveBall(GameState game)
 {
 
 	/* Move the ball by its motion vector. */
@@ -107,15 +108,15 @@ static void MoveBall()
 	if (game.ballX < 0)
 	{
 
-		game.score2 += 1;
-		InitGame();
+		game.score1 += 1;
+		game = InitGame(game);
 	}
 
 	if (game.ballX > screen->w - 10)
 	{
 
 		game.score2 += 1;
-		InitGame();
+		game = InitGame(game);
 	}
 
 	if (game.ballY < 0 || game.ballY > screen->h - 10)
@@ -131,9 +132,12 @@ static void MoveBall()
 	{
 		int paddle;
 
-		if (player==0){
+		if (player == 0)
+		{
 			paddle = game.paddle1Y;
-		} else {
+		}
+		else
+		{
 			paddle = game.paddle2Y;
 		}
 
@@ -233,111 +237,142 @@ static void MoveBall()
 			}
 		}
 	}
+
+	return game;
 }
 
-static void MovePaddle(int d, int pad, GameState game)
+GameState MovePaddle(int d, int pad, GameState game)
 {
 
-	int paddleY;
-
-	if (pad == 0){
-		paddleY = game.paddle1Y;
-	} else {
-		paddleY = game.paddle2Y;
-	}
-
-	// if the down arrow is pressed move paddle down
-	if (d == 0)
+	if (pad == 0)
 	{
-
-		if (paddleY >= screen->h - PADDLE_HEIGHT)
+		if (d == 0)
 		{
 
-			paddleY = screen->h - PADDLE_HEIGHT;
+			if (game.paddle1Y >= screen->h - PADDLE_HEIGHT)
+			{
+
+				game.paddle1Y = screen->h - PADDLE_HEIGHT;
+			}
+			else
+			{
+
+				game.paddle1Y += 5;
+			}
 		}
-		else
+
+		// if the up arrow is pressed move paddle up
+		if (d == 1)
 		{
 
-			paddleY += 5;
+			if (game.paddle1Y <= 0)
+			{
+
+				game.paddle1Y = 0;
+			}
+			else
+			{
+
+				game.paddle1Y -= 5;
+			}
 		}
 	}
-
-	// if the up arrow is pressed move paddle up
-	if (d == 1)
+	else
 	{
-
-		if (paddleY <= 0)
+		if (d == 0)
 		{
 
-			paddleY = 0;
+			if (game.paddle2Y >= screen->h - PADDLE_HEIGHT)
+			{
+
+				game.paddle2Y = screen->h - PADDLE_HEIGHT;
+			}
+			else
+			{
+
+				game.paddle2Y += 5;
+			}
 		}
-		else
+
+		// if the up arrow is pressed move paddle up
+		if (d == 1)
 		{
 
-			paddleY -= 5;
+			if (game.paddle2Y <= 0)
+			{
+
+				game.paddle2Y = 0;
+			}
+			else
+			{
+
+				game.paddle2Y -= 5;
+			}
 		}
 	}
+
+	return game;
 }
 
 static void DrawGameOver(int p)
 {
 
-	SDL_Rect p1;
-	SDL_Rect p2;
+	SDL_Rect player1;
+	SDL_Rect player2;
 	SDL_Rect cpu;
-	SDL_Rect dest;
+	SDL_Rect destination;
 
-	p1.x = 0;
-	p1.y = 0;
-	p1.w = end->w;
-	p1.h = 75;
+	player1.x = 0;
+	player1.y = 0;
+	player1.w = end->w;
+	player1.h = 75;
 
-	p2.x = 0;
-	p2.y = 75;
-	p2.w = end->w;
-	p2.h = 75;
+	player2.x = 0;
+	player2.y = 75;
+	player2.w = end->w;
+	player2.h = 75;
 
 	cpu.x = 0;
 	cpu.y = 150;
 	cpu.w = end->w;
 	cpu.h = 75;
 
-	dest.x = (screen->w / 2) - (end->w / 2);
-	dest.y = (screen->h / 2) - (75 / 2);
-	dest.w = end->w;
-	dest.h = 75;
+	destination.x = (screen->w / 2) - (end->w / 2);
+	destination.y = (screen->h / 2) - (75 / 2);
+	destination.w = end->w;
+	destination.h = 75;
 
 	switch (p)
 	{
 
 	case 1:
-		SDL_BlitSurface(end, &p1, screen, &dest);
+		SDL_BlitSurface(end, &player1, screen, &destination);
 		break;
 	case 2:
-		SDL_BlitSurface(end, &p2, screen, &dest);
+		SDL_BlitSurface(end, &player2, screen, &destination);
 		break;
 	default:
-		SDL_BlitSurface(end, &cpu, screen, &dest);
+		SDL_BlitSurface(end, &cpu, screen, &destination);
 	}
 }
 
 static void DrawMenu()
 {
 
-	SDL_Rect src;
-	SDL_Rect dest;
+	SDL_Rect source;
+	SDL_Rect destination;
 
-	src.x = 0;
-	src.y = 0;
-	src.w = title->w;
-	src.h = title->h;
+	source.x = 0;
+	source.y = 0;
+	source.w = title->w;
+	source.h = title->h;
 
-	dest.x = (screen->w / 2) - (src.w / 2);
-	dest.y = (screen->h / 2) - (src.h / 2);
-	dest.w = title->w;
-	dest.h = title->h;
+	destination.x = (screen->w / 2) - (source.w / 2);
+	destination.y = (screen->h / 2) - (source.h / 2);
+	destination.w = title->w;
+	destination.h = title->h;
 
-	SDL_BlitSurface(title, &src, screen, &dest);
+	SDL_BlitSurface(title, &source, screen, &destination);
 }
 
 static void DrawNet()
@@ -368,17 +403,17 @@ static void DrawNet()
 	}
 }
 
-static void DrawBall()
+static void DrawBall(GameState game)
 {
 
-	SDL_Rect src;
+	SDL_Rect source;
 
-	src.x = game.ballX;
-	src.y = game.ballY;
-	src.w = ball.w;
-	src.h = ball.h;
+	source.x = game.ballX;
+	source.y = game.ballY;
+	source.w = BALL_WIDTH;
+	source.h = BALL_HEIGHT;
 
-	int r = SDL_FillRect(screen, &src, 0xffffffff);
+	int r = SDL_FillRect(screen, &source, 0xffffffff);
 
 	if (r != 0)
 	{
@@ -387,78 +422,86 @@ static void DrawBall()
 	}
 }
 
-static void draw_paddle()
+static void DrawPaddle(GameState game)
 {
 
-	SDL_Rect src;
+	SDL_Rect source;
 	int i;
 
 	for (i = 0; i < 2; i++)
 	{
+		if (i == 0)
+		{
+			source.x = PADDLE_1_X;
+			source.y = game.paddle1Y;
+		}
+		else
+		{
+			source.x = PADDLE_2_X;
+			source.y = game.paddle2Y;
+		}
 
-		src.x = paddle[i].x;
-		src.y = paddle[i].y;
-		src.w = paddle[i].w;
-		src.h = paddle[i].h;
+		source.w = PADDLE_WIDTH;
+		source.h = PADDLE_HEIGHT;
 
-		int r = SDL_FillRect(screen, &src, 0xffffffff);
+		int r = SDL_FillRect(screen, &source, 0xffffffff);
 
 		if (r != 0)
 		{
 
-			printf("fill rectangle faliled in func draw_paddle()");
+			printf("fill rectangle faliled in func DrawPaddle()");
 		}
 	}
 }
 
-static void draw_player_0_score()
+static void DrawPlayer1Score(GameState game)
 {
 
-	SDL_Rect src;
-	SDL_Rect dest;
+	SDL_Rect source;
+	SDL_Rect destination;
 
-	src.x = 0;
-	src.y = 0;
-	src.w = 64;
-	src.h = 64;
+	source.x = 0;
+	source.y = 0;
+	source.w = 64;
+	source.h = 64;
 
-	dest.x = (screen->w / 2) - src.w - 12; // 12 is just padding spacing
-	dest.y = 0;
-	dest.w = 64;
-	dest.h = 64;
+	destination.x = (screen->w / 2) - source.w - 12; // 12 is just padding spacing
+	destination.y = 0;
+	destination.w = 64;
+	destination.h = 64;
 
-	if (game.score2 > 0 && game.score2 < 10)
+	if (game.score1 > 0 && game.score1 < 10)
 	{
 
-		src.x += src.w * game.score2;
+		source.x += source.w * game.score1;
 	}
 
-	SDL_BlitSurface(numbermap, &src, screen, &dest);
+	SDL_BlitSurface(numbermap, &source, screen, &destination);
 }
 
-static void draw_player_1_score()
+static void DrawPlayer2Score(GameState game)
 {
 
-	SDL_Rect src;
-	SDL_Rect dest;
+	SDL_Rect source;
+	SDL_Rect destination;
 
-	src.x = 0;
-	src.y = 0;
-	src.w = 64;
-	src.h = 64;
+	source.x = 0;
+	source.y = 0;
+	source.w = 64;
+	source.h = 64;
 
-	dest.x = (screen->w / 2) + 12;
-	dest.y = 0;
-	dest.w = 64;
-	dest.h = 64;
+	destination.x = (screen->w / 2) + 12;
+	destination.y = 0;
+	destination.w = 64;
+	destination.h = 64;
 
 	if (game.score2 > 0 && game.score2 < 10)
 	{
 
-		src.x += src.w * game.score2;
+		source.x += source.w * game.score2;
 	}
 
-	SDL_BlitSurface(numbermap, &src, screen, &dest);
+	SDL_BlitSurface(numbermap, &source, screen, &destination);
 }
 
 int main(int argc, char *args[])
@@ -471,16 +514,21 @@ int main(int argc, char *args[])
 		return 0;
 	}
 
+	// get the size of the window
+	int width, height;
 	SDL_GetWindowSize(window, &width, &height);
 
 	int sleep = 0;
 	int quit = 0;
 	int state = 0;
 	int r = 0;
-	Uint32 next_game_tick = SDL_GetTicks();
+	int moveY;
+	Uint32 nextGameTick = SDL_GetTicks();
+
+	GameState game;
 
 	// Initialize the ball position data.
-	InitGame();
+	game = InitGame(game);
 
 	// render loop
 	while (quit == 0)
@@ -500,25 +548,25 @@ int main(int argc, char *args[])
 		if (keystate[SDL_SCANCODE_DOWN])
 		{
 
-			move_paddle(0, 1);
+			game = MovePaddle(0, 1, game);
 		}
 
 		if (keystate[SDL_SCANCODE_S])
 		{
 
-			move_paddle(0, 0);
+			game = MovePaddle(0, 0, game);
 		}
 
 		if (keystate[SDL_SCANCODE_UP])
 		{
 
-			move_paddle(1, 1);
+			game = MovePaddle(1, 1, game);
 		}
 
 		if (keystate[SDL_SCANCODE_W])
 		{
 
-			move_paddle(1, 0);
+			game = MovePaddle(1, 0, game);
 		}
 
 		// draw background
@@ -575,33 +623,33 @@ int main(int argc, char *args[])
 			}
 
 			//* Move the balls for the next frame.
-			MoveBall();
+			game = MoveBall(game);
 
 			// draw net
 			DrawNet();
 
 			// draw paddles
-			draw_paddle();
+			DrawPaddle(game);
 
 			//* Put the ball on the screen.
-			DrawBall();
+			DrawBall(game);
 
 			// draw the score
-			draw_player_0_score();
+			DrawPlayer1Score(game);
 
 			// draw the score
-			draw_player_1_score();
+			DrawPlayer2Score(game);
 		}
 
-		SDL_UpdateTexture(screen_texture, NULL, screen->pixels, screen->w * sizeof(Uint32));
-		SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
+		SDL_UpdateTexture(screenTexture, NULL, screen->pixels, screen->w * sizeof(Uint32));
+		SDL_RenderCopy(renderer, screenTexture, NULL, NULL);
 
 		// draw to the display
 		SDL_RenderPresent(renderer);
 
 		// time it takes to render  frame in milliseconds
-		next_game_tick += 1000 / 60;
-		sleep = next_game_tick - SDL_GetTicks();
+		nextGameTick += 1000 / 60;
+		sleep = nextGameTick - SDL_GetTicks();
 
 		if (sleep >= 0)
 		{
@@ -619,7 +667,7 @@ int main(int argc, char *args[])
 	// free renderer and all textures used with it
 	SDL_DestroyRenderer(renderer);
 
-	// Destroy window
+	// destinationroy window
 	SDL_DestroyWindow(window);
 
 	// Quit SDL subsystems
@@ -678,12 +726,12 @@ int init(int width, int height, int argc, char *args[])
 	}
 
 	// create the screen texture to render the screen surface to the actual display
-	screen_texture = SDL_CreateTextureFromSurface(renderer, screen);
+	screenTexture = SDL_CreateTextureFromSurface(renderer, screen);
 
-	if (screen_texture == NULL)
+	if (screenTexture == NULL)
 	{
 
-		printf("Could not create the screen_texture! SDL_Error: %s\n", SDL_GetError());
+		printf("Could not create the screenTexture! SDL_Error: %s\n", SDL_GetError());
 
 		return 1;
 	}
