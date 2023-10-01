@@ -36,4 +36,14 @@ const char *Receive(char *protocol)
         char *move[100];
         return (move, "%s %s", protocolArray[1], protocolArray[2]);
     }
+    else if (strcmp(protocolArray[0], "Start") == 0)
+    {
+        char *start[100];
+        return (start, "%s", protocolArray[1]);
+    }
+    else if (strcmp(protocolArray[0], "End") == 0)
+    {
+        char *end[100];
+        return (end, "%s", protocolArray[1]);
+    }
 }
