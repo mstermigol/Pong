@@ -1,3 +1,6 @@
+#ifndef GAME_H
+#define GAME_H
+
 #include <SDL2/SDL.h>
 
 SDL_Surface *screen;
@@ -23,3 +26,5 @@ GameState InitGame(GameState game)
 
     return game;
 }
+
+#endif // GAME_H

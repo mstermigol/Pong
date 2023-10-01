@@ -1,5 +1,9 @@
+#ifndef PADDLE_H
+#define PADDLE_H
+
 #include "config.h"
 #include <SDL2/SDL.h>
+#include "game.h"
 
 SDL_Surface *screen;
 
@@ -75,3 +79,5 @@ GameState MovePaddle(int d, int pad, GameState game)
 
     return game;
 }
+
+#endif // PADDLE_H

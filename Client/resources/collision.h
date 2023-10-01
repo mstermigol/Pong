@@ -1,4 +1,8 @@
+#ifndef COLLISION_H
+#define COLLISION_H
+
 #include "config.h"
+#include "game.h"
 
 int CheckCollision(GameState game, int player)
 {
@@ -53,3 +57,5 @@ int CheckCollision(GameState game, int player)
 
 	return 1;
 }
+
+#endif // COLLISION_H

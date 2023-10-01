@@ -1,3 +1,10 @@
+#ifndef BALL_H
+#define BALL_H
+
+#include "config.h"
+#include "game.h"
+#include "collision.h"
+
 GameState MoveBall(GameState game)
 {
 
@@ -141,3 +148,5 @@ GameState MoveBall(GameState game)
 
     return game;
 }
+
+#endif // BALL_H

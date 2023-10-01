@@ -1,3 +1,6 @@
+#ifndef SCORE_H
+#define SCORE_H
+
 int CheckScore(int score1, int score2)
 {
 
@@ -19,3 +22,5 @@ int CheckScore(int score1, int score2)
         return 0;
     }
 }
+
+#endif // SCORE_H

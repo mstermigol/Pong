@@ -1,3 +1,6 @@
+#ifndef DRAW_H
+#define DRAW_H
+
 #include <SDL2/SDL.h>
 #include "config.h"
 
@@ -299,3 +302,5 @@ static void DrawPlayer2Score(GameState game)
 
     SDL_BlitSurface(numbermap, &source, screen, &destination);
 }
+
+#endif // DRAW_H
