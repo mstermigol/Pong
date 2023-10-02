@@ -7,7 +7,9 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <pthread.h>
-#include "headers/game.h"
+#include "game/game.h"
+#include "game/ball.h"
+
 
 #define MAX_CLIENTS 2
 #define MAX_NICKNAME_LEN 20
@@ -80,6 +82,7 @@ void *BroadcastGameState(void *arg)
         }
 
         printf("Broadcast: %s\n", message);
+        
 
         usleep(100000);
     }
@@ -213,6 +216,7 @@ int main(int argc, char *argv[])
 
         if (session.gameStarted)
         {
+
             for (int i = 0; i < session.numClients; i++)
             {
                 int sd = session.clients[i].socket;

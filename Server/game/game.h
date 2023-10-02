@@ -1,3 +1,6 @@
+#ifndef GAME_H
+#define GAME_H
+
 #include "config.h"
 
 typedef struct
@@ -21,3 +24,5 @@ GameState InitGame(GameState game)
 
     return game;
 }
+
+#endif
