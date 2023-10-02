@@ -1,39 +1,23 @@
-#ifndef GAME_H
-#define GAME_H
-
-#include <stdio.h>
-#include <stdlib.h>
-#include "SDL2/SDL.h"
 #include "config.h"
 
 typedef struct
 {
-    int x, y;
-    int w, h;
-} Paddle;
+    int ballX, ballY;
+    int ballDx, ballDy;
+    int paddle1Y, paddle2Y;
+    int score1, score2;
+} GameState;
 
-typedef struct
+GameState InitGame(GameState game)
 {
-    int x, y;
-    int w, h;
-} Ball;
 
-typedef struct
-{
-    int socket;
-    int paddleY;
-    int score;
-} Player;
+    game.ballX = SCREEN_WIDTH / 2;
+    game.ballY = SCREEN_HEIGHT / 2;
+    game.ballDy = 1;
+    game.ballDx = 1;
 
-typedef struct
-{
-    Player players[MAX_CLIENTS];
-    int ballX;
-    int ballY;
-    int ballDx;
-    int ballDy;
-} GameSession;
+    game.paddle1Y = SCREEN_HEIGHT / 2 - 50;
+    game.paddle2Y = SCREEN_HEIGHT / 2 - 50;
 
-static SDL_Surface *screen;
-
-#endif
+    return game;
+}
