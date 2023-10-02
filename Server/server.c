@@ -3,139 +3,279 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <pthread.h>
 
-#define MAX_NICKNAME_LENGTH 20
-#define MAX_SESSIONS 2
+#define MAX_CLIENTS 2
+#define MAX_NICKNAME_LEN 20
+#define WINNING_SCORE 10
 
-struct ClientInfo {
-    char nickname[MAX_NICKNAME_LENGTH];
-    struct sockaddr_in clientAddr;
-};
+typedef struct
+{
+    char name[MAX_NICKNAME_LEN];
+    int socket;
+    struct sockaddr_in address;
+    int playerNumber;
+} Client;
 
-struct Session {
-    struct ClientInfo players[2];
-    int sessionNumber;
-    int isOccupied;
-};
+typedef struct
+{
+    int var1;
+    int var2;
+    Client clients[MAX_CLIENTS];
+    int numClients;
+    int gameStarted;
+} Session;
 
-void PrintSessionClients(struct Session *session) {
-    printf("Session %d:\n", session->sessionNumber);
-    for (int i = 0; i < session->isOccupied; i++) {
-        printf("Client %d: %s - Socket Structure: %s:%d\n",
-               i + 1, session->players[i].nickname,
-               inet_ntoa(session->players[i].clientAddr.sin_addr),
-               ntohs(session->players[i].clientAddr.sin_port));
+void UpdateVariables(Session *session, int playerNumber, int number)
+{
+    if (playerNumber == 1)
+    {
+        session->var1 += number;
+    }
+    else if (playerNumber == 2)
+    {
+        session->var2 += number;
     }
 }
 
-int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s [PORT]\n", argv[0]);
-        exit(1);
+int CheckWinner(Session *session)
+{
+    if (session->var1 >= WINNING_SCORE)
+    {
+        return 1;
+    }
+    else if (session->var2 >= WINNING_SCORE)
+    {
+        return 2;
+    }
+    return 0;
+}
+
+void *BroadcastVariables(void *arg)
+{
+    Session *session = (Session *)arg;
+    char message[256];
+
+    while (1)
+    {
+        snprintf(message, sizeof(message), "var1: %d and var2: %d", session->var1, session->var2);
+
+        for (int j = 0; j < session->numClients; j++)
+        {
+            ssize_t bytesSent = sendto(session->clients[j].socket, message, strlen(message), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
+            if (bytesSent == -1)
+            {
+                perror("Send error");
+            }
+        }
+
+        printf("Broadcast: %s\n", message);
+
+        usleep(100000);
+    }
+
+    return NULL;
+}
+
+int main(int argc, char *argv[])
+{
+    if (argc != 2)
+    {
+        fprintf(stderr, "Usage: %s [port]\n", argv[0]);
+        exit(EXIT_FAILURE);
     }
 
     int serverSocket;
-    struct sockaddr_in serverAddr, clientAddr;
-    socklen_t clientLen = sizeof(clientAddr);
+    struct sockaddr_in serverAddress;
+    fd_set readfds;
+    int maxSocketDescriptor;
+    Session session;
+    session.numClients = 0;
+    session.gameStarted = 0;
 
-    serverSocket = socket(AF_INET, SOCK_DGRAM, 0);
-    if (serverSocket < 0) {
-        perror("Socket creation error");
-        exit(1);
+    if ((serverSocket = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+    {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
     }
 
-    memset(&serverAddr, 0, sizeof(serverAddr));
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(atoi(argv[1]));
-    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    memset(&serverAddress, 0, sizeof(serverAddress));
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_addr.s_addr = INADDR_ANY;
+    serverAddress.sin_port = htons(atoi(argv[1]));
 
-    if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
-        perror("Binding error");
-        close(serverSocket);
-        exit(1);
+    if (bind(serverSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
+    {
+        perror("Binding failed");
+        exit(EXIT_FAILURE);
     }
 
-    printf("Server is running and listening on port %d...\n", atoi(argv[1]));
+    printf("Server started on port %d\n", atoi(argv[1]));
 
-    struct ClientInfo clients[MAX_SESSIONS*2];
-    int numClients = 0;
+    while (1)
+    {
+        FD_ZERO(&readfds);
+        FD_SET(serverSocket, &readfds);
+        maxSocketDescriptor = serverSocket;
 
-    struct Session sessions[MAX_SESSIONS];
-    int numSessions = 0;
-
-    while (1) {
-        char buffer[1024];
-        int bytesRecieved = recvfrom(serverSocket, buffer, sizeof(buffer), 0,
-                                      (struct sockaddr *)&clientAddr, &clientLen);
-        if (bytesRecieved < 0) {
-            perror("Error receiving data");
-            continue;
-        }
-
-        buffer[bytesRecieved] = '\0';
-
-        char nickname[MAX_NICKNAME_LENGTH];
-        sscanf(buffer, "%s", nickname);
-
-        int nicknameExists = 0;
-        for (int i = 0; i < numClients; i++) {
-            if (strcmp(clients[i].nickname, nickname) == 0) {
-                nicknameExists = 1;
-                break;
+        for (int i = 0; i < session.numClients; i++)
+        {
+            int sd = session.clients[i].socket;
+            FD_SET(sd, &readfds);
+            if (sd > maxSocketDescriptor)
+            {
+                maxSocketDescriptor = sd;
             }
         }
 
-        if (nicknameExists) {
-            printf("Nickname %s already exists. Ignoring new connection request.\n", nickname);
-        } else {
-            if (numClients < MAX_SESSIONS*2) {
-                strncpy(clients[numClients].nickname, nickname, MAX_NICKNAME_LENGTH);
-                memcpy(&clients[numClients].clientAddr, &clientAddr, sizeof(clientAddr));
-                numClients++;
+        if (select(maxSocketDescriptor + 1, &readfds, NULL, NULL, NULL) == -1)
+        {
+            perror("Select error");
+            exit(EXIT_FAILURE);
+        }
 
-                int sessionIndex = -1;
-                for (int i = 0; i < numSessions; i++) {
-                    if (sessions[i].isOccupied < 2) {
-                        sessionIndex = i;
-                        break;
+        if (session.gameStarted == 0)
+        {
+            if (FD_ISSET(serverSocket, &readfds))
+            {
+                char buffer[1024];
+                struct sockaddr_in clientAddress;
+                socklen_t adrressLength = sizeof(clientAddress);
+                ssize_t bytesRecieved = recvfrom(serverSocket, buffer, sizeof(buffer), 0, (struct sockaddr *)&clientAddress, &adrressLength);
+
+                if (bytesRecieved == -1)
+                {
+                    perror("Receive error");
+                }
+                else
+                {
+                    buffer[bytesRecieved] = '\0';
+
+                    if (session.numClients < MAX_CLIENTS)
+                    {
+                        if (strncmp(buffer, "name ", 5) == 0)
+                        {
+                            char nickname[MAX_NICKNAME_LEN];
+                            if (sscanf(buffer, "name %s", nickname) == 1)
+                            {
+                                Client newClient;
+                                strncpy(newClient.name, nickname, MAX_NICKNAME_LEN);
+                                newClient.socket = serverSocket;
+                                newClient.playerNumber = session.numClients + 1;
+                                newClient.address = clientAddress;             
+                                session.clients[session.numClients] = newClient;
+
+                                char playerNumber[2];
+                                snprintf(playerNumber, sizeof(playerNumber), "%d", newClient.playerNumber);
+                                ssize_t bytesSent = sendto(newClient.socket, playerNumber, strlen(playerNumber), 0, (struct sockaddr *)&newClient.address, sizeof(newClient.address));
+                                if (bytesSent == -1)
+                                {
+                                    perror("Send error");
+                                }
+
+                                session.numClients++;
+
+                                printf("Client %s connected as Player %d\n", newClient.name, newClient.playerNumber);
+
+                                if (session.numClients == MAX_CLIENTS)
+                                {
+                                    session.gameStarted = 1;
+                                    printf("Game started!\n");
+
+                                    pthread_t broadcastThread;
+                                    pthread_create(&broadcastThread, NULL, BroadcastVariables, &session);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        printf("Maximum number of players reached. Ignoring client request.\n");
                     }
                 }
-
-                if (sessionIndex == -1 && numSessions < MAX_SESSIONS) {
-                    sessionIndex = numSessions;
-                    sessions[sessionIndex].sessionNumber = numSessions;
-                    numSessions++;
-                }
-
-                if (sessionIndex != -1) {
-                    struct Session *currentSession = &sessions[sessionIndex];
-                    if (currentSession->isOccupied < 2) {
-                        currentSession->players[currentSession->isOccupied] = clients[numClients - 1];
-                        currentSession->isOccupied++;
-
-                        char welcomeMsg[1024];
-                        snprintf(welcomeMsg, sizeof(welcomeMsg),
-                                 "%s welcome to Session %d! This is your socket structure: %s:%d\n",
-                                 nickname, currentSession->sessionNumber,
-                                 inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
-
-                        sendto(serverSocket, welcomeMsg, strlen(welcomeMsg), 0,
-                               (struct sockaddr *)&clientAddr, clientLen);
-                    }
-                }
-            } else {
-                printf("Maximum number of clients reached. Ignoring new connection request.\n");
             }
         }
 
-        for (int i = 0; i < numSessions; i++) {
-            if (i < numSessions) {
-                PrintSessionClients(&sessions[i]);
+        if (session.gameStarted)
+        {
+            for (int i = 0; i < session.numClients; i++)
+            {
+                int sd = session.clients[i].socket;
+                if (FD_ISSET(sd, &readfds))
+                {
+                    char buffer[1024];
+                    struct sockaddr_in clientAddress;
+                    socklen_t adrressLength = sizeof(clientAddress);
+                    ssize_t bytesRecieved = recvfrom(sd, buffer, sizeof(buffer), 0, (struct sockaddr *)&clientAddress, &adrressLength);
+
+                    if (bytesRecieved == -1)
+                    {
+                        perror("Receive error");
+                    }
+                    else
+                    {
+                        buffer[bytesRecieved] = '\0';
+
+                        int number, player;
+                        if (sscanf(buffer, "move %d %d", &number, &player) == 2)
+                        {
+                            if (player == 1 || player == 2)
+                            {
+                                UpdateVariables(&session, player, number);
+                                int winner = CheckWinner(&session);
+
+                                char message[256];
+                                snprintf(message, sizeof(message), "var1: %d and var2: %d", session.var1, session.var2);
+
+                                for (int j = 0; j < session.numClients; j++)
+                                {
+                                    ssize_t bytesSent = sendto(session.clients[j].socket, message, strlen(message), 0, (struct sockaddr *)&session.clients[j].address, sizeof(session.clients[j].address));
+                                    if (bytesSent == -1)
+                                    {
+                                        perror("Send error");
+                                    }
+                                }
+
+                                if (winner != 0)
+                                {
+                                    printf("Player %d wins!\n", winner);
+
+                                    char winnerMessage[64];
+                                    snprintf(winnerMessage, sizeof(winnerMessage), "Player %d wins the game!", winner);
+                                    for (int j = 0; j < session.numClients; j++)
+                                    {
+                                        ssize_t bytesSent = sendto(session.clients[j].socket, winnerMessage, strlen(winnerMessage), 0, (struct sockaddr *)&session.clients[j].address, sizeof(session.clients[j].address));
+                                        if (bytesSent == -1)
+                                        {
+                                            perror("Send error");
+                                        }
+                                    }
+
+                                    for (int j = 0; j < session.numClients; j++)
+                                    {
+                                        close(session.clients[j].socket);
+                                    }
+                                    session.numClients = 0;
+                                    session.var1 = 0;
+                                    session.var2 = 0;
+                                    session.gameStarted = 0;
+                                    printf("Game ended. Waiting for new players...\n");
+                                }
+                            }
+                            else
+                            {
+                                printf("Invalid player number: %d\n", player);
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
     close(serverSocket);
-
     return 0;
 }
