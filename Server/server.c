@@ -321,7 +321,7 @@ void UpdatePaddlePosition(Session *session, int playerNumber, int paddleY)
     }
 }
 
-int CheckWinner(Session *session)
+int CheckScore(Session *session)
 {
     if (session->gameState.score1 >= WINNING_SCORE)
     {
