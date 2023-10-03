@@ -358,7 +358,7 @@ void *BroadcastGameState(Session session, int serverSocket)
         }
 
         // Create a message using the GameState structure
-        snprintf(message, sizeof(message), "GameState: ballX %d, ballY %d, ballDx %d, ballDy %d, paddle1Y %d, paddle2Y %d, score1 %d, score2 %d",
+        snprintf(message, sizeof(message), "GameState %d %d %d %d %d %d %d %d",
                  session.gameState.ballX, session.gameState.ballY,
                  session.gameState.ballDx, session.gameState.ballDy,
                  session.gameState.paddle1Y, session.gameState.paddle2Y,
