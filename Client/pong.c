@@ -52,100 +52,24 @@ void DrawGameOver(int p);
 
 GameState deserializeGameState(char *buffer, GameState game)
 {
-	sscanf(buffer, "GameState %d %d %d %d %d %d %d %d", &game.ballX, &game.ballY, &game.ballDx, &game.ballDy, &game.paddle1Y, &game.paddle2Y, &game.score1, &game.score2);
-}
+	GameState aux;
 
-void *EventListener(void *arg)
-{
-	int clientSocket = *(int *)arg;
-	struct sockaddr_in serverAddress;
-	socklen_t serverLen = sizeof(serverAddress);
+	printf("Buffer: %s\n", buffer);
 
-	fd_set readFileDescriptors;
-	int maxFileDescriptors = clientSocket + 1;
-
-	GameState game;
-
-	if (Init(SCREEN_WIDTH, SCREEN_HEIGHT) == 1)
+	if (sscanf(buffer, "GameState %d %d %d %d %d %d %d %d", aux.ballX, aux.ballY, aux.ballDx, aux.ballDy,
+			   aux.paddle1Y, aux.paddle2Y, aux.score1, aux.score2) == 8)
 	{
-
-		return 0;
+		game.ballX = aux.ballX;
+		game.ballY = aux.ballY;
+		game.ballDx = aux.ballDx;
+		game.ballDy = aux.ballDy;
+		game.paddle1Y = aux.paddle1Y;
+		game.paddle2Y = aux.paddle2Y;
+		game.score1 = aux.score1;
+		game.score2 = aux.score2;
+		printf("GameState received\n");
 	}
-
-	SDL_GetWindowSize(window, &SCREEN_WIDTH, &SCREEN_HEIGHT);
-
-	while (1)
-	{
-
-		FD_ZERO(&readFileDescriptors);
-		FD_SET(clientSocket, &readFileDescriptors);
-
-		struct timeval timeout;
-		timeout.tv_sec = 1;
-		timeout.tv_usec = 0;
-
-		int activity = select(maxFileDescriptors, &readFileDescriptors, NULL, NULL, &timeout);
-		if (activity < 0)
-		{
-			perror("Select error");
-			exit(1);
-		}
-
-		if (FD_ISSET(clientSocket, &readFileDescriptors))
-		{
-			char buffer[1024];
-			int bytesReceived = recvfrom(clientSocket, buffer, sizeof(buffer), 0,
-										 (struct sockaddr *)&serverAddress, &serverLen);
-			if (strcmp(buffer, "GameState") == 0)
-			{
-				game = deserializeGameState(buffer, game);
-
-				DrawNet();
-
-				// draw paddles
-				DrawPaddle(game);
-
-				//* Put the ball on the screen.
-				DrawBall(game);
-
-				// draw the score
-				DrawPlayer1Score(game);
-
-				// draw the score
-				DrawPlayer2Score(game);
-
-				SDL_UpdateTexture(screenTexture, NULL, screen->pixels, screen->w * sizeof(Uint32));
-				SDL_RenderCopy(renderer, screenTexture, NULL, NULL);
-
-				// draw to the display
-				SDL_RenderPresent(renderer);
-			}
-			if (bytesReceived < 0)
-			{
-				perror("Error receiving data");
-				continue;
-			}
-
-			buffer[bytesReceived] = '\0';
-		}
-	}
-
-	pthread_exit(NULL);
-
-	// free loaded images
-	SDL_FreeSurface(screen);
-	SDL_FreeSurface(title);
-	SDL_FreeSurface(numbermap);
-	SDL_FreeSurface(end);
-
-	// free renderer and all textures used with it
-	SDL_DestroyRenderer(renderer);
-
-	// destinationroy window
-	SDL_DestroyWindow(window);
-
-	// Quit SDL subsystems
-	SDL_Quit();
+	return game;
 }
 
 int Init(int width, int height)
@@ -509,16 +433,12 @@ int main(int argc, char *argv[])
 			char buffer[1024];
 			int bytesReceived = recvfrom(clientSocket, buffer, sizeof(buffer), 0,
 										 (struct sockaddr *)&serverAddress, &serverLen);
-			char *token = strtok(buffer, " ");
-			if (strcmp(token, "GameState") == 0)
-			{
-				printf("GameState received\n");
-				game = deserializeGameState(buffer, game);
 
-				printf("BallX: %d\n", game.ballX);
-				printf("BallY: %d\n", game.ballY);
-				printf("BallDx: %d\n", game.ballDx);
-				printf("BallDy: %d\n", game.ballDy);
+			printf("Received: %s\n", buffer);
+
+			if (strcmp(buffer, "GameState ") == 0)
+			{
+				game = deserializeGameState(buffer, game);
 
 				SDL_PumpEvents();
 
