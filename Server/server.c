@@ -338,24 +338,11 @@ void *BroadcastGameState(Session session, int serverSocket)
 {
     char message[256];
 
-    while (1)
+    while (session.gameStarted)
     {
         session.gameState = MoveBall(session.gameState);
 
         int winner = CheckScore(&session);
-
-        if (winner != 3)
-        {
-            printf("Player %d wins!\n", winner);
-
-            for (int j = 0; j < session.numClients; j++)
-            {
-                close(session.clients[j].socket);
-            }
-            session.numClients = 0;
-
-            close(serverSocket);
-        }
 
         // Create a message using the GameState structure
         snprintf(message, sizeof(message), "GameState: ballX %d, ballY %d, ballDx %d, ballDy %d, paddle1Y %d, paddle2Y %d, score1 %d, score2 %d",
@@ -375,8 +362,17 @@ void *BroadcastGameState(Session session, int serverSocket)
 
         printf("Broadcast: %s\n", message);
 
+        if (winner != 3)
+        {
+            printf("Player %d wins!\n", winner);
+            session.numClients = 0;
+            session.gameStarted = 0;
+        }
+
         usleep(100000);
     }
+
+    close(serverSocket);
 
     return NULL;
 }
