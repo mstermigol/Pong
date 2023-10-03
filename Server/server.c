@@ -7,12 +7,26 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <pthread.h>
-#include "game/game.h"
-#include "game/ball.h"
 
 #define MAX_CLIENTS 2
 #define MAX_NICKNAME_LEN 20
 #define WINNING_SCORE 10
+#define SCREEN_WIDTH 640
+#define SCREEN_HEIGHT 480
+#define PADDLE_WIDTH 10
+#define PADDLE_HEIGHT 50
+#define PADDLE_1_X 10
+#define PADDLE_2_X 620
+#define BALL_WIDTH 10
+#define BALL_HEIGHT 10
+
+typedef struct
+{
+    int ballX, ballY;
+    int ballDx, ballDy;
+    int paddle1Y, paddle2Y;
+    int score1, score2;
+} GameState;
 
 typedef struct
 {
@@ -31,6 +45,269 @@ typedef struct
     Client clients[MAX_CLIENTS];
     int numClients;
 } Session;
+
+GameState InitGame(GameState game)
+{
+
+    game.ballX = SCREEN_WIDTH / 2;
+    game.ballY = SCREEN_HEIGHT / 2;
+    game.ballDy = 1;
+    game.ballDx = 1;
+
+    game.paddle1Y = SCREEN_HEIGHT / 2 - 50;
+    game.paddle2Y = SCREEN_HEIGHT / 2 - 50;
+
+    return game;
+}
+
+GameState MovePaddle(int upOrDown, int player, GameState game)
+{
+    if (player == 0)
+    {
+        if (upOrDown == 0)
+        {
+            if (game.paddle1Y >= SCREEN_HEIGHT - PADDLE_HEIGHT)
+            {
+                game.paddle1Y = SCREEN_HEIGHT - PADDLE_HEIGHT;
+            }
+            else
+            {
+                game.paddle1Y += 5;
+            }
+        }
+        if (upOrDown == 1)
+        {
+            if (game.paddle1Y <= 0)
+            {
+                game.paddle1Y = 0;
+            }
+            else
+            {
+                game.paddle1Y -= 5;
+            }
+        }
+    }
+    else
+    {
+        if (upOrDown == 0)
+        {
+            if (game.paddle2Y >= SCREEN_HEIGHT - PADDLE_HEIGHT)
+            {
+                game.paddle2Y = SCREEN_HEIGHT - PADDLE_HEIGHT;
+            }
+            else
+            {
+                game.paddle2Y += 5;
+            }
+        }
+        if (upOrDown == 1)
+        {
+            if (game.paddle2Y <= 0)
+            {
+                game.paddle2Y = 0;
+            }
+            else
+            {
+                game.paddle2Y -= 5;
+            }
+        }
+    }
+    return game;
+}
+
+int CheckCollision(GameState game, int player)
+{
+    int paddleY;
+    int paddleX;
+
+    if (player == 0)
+    {
+        paddleY = game.paddle1Y;
+        paddleX = PADDLE_1_X;
+    }
+    else
+    {
+        paddleY = game.paddle2Y;
+        paddleX = PADDLE_2_X;
+    }
+
+    int leftOfTheBall, leftOfPaddle;
+    int rightOfTheBall, rightOfPaddle;
+    int topOfTheBall, topOfThePaddle;
+    int bottomOfTheBall, bottomOfThePaddle;
+
+    leftOfTheBall = game.ballX;
+    rightOfTheBall = game.ballX + BALL_WIDTH;
+    topOfTheBall = game.ballY;
+    bottomOfTheBall = game.ballY + BALL_HEIGHT;
+
+    leftOfPaddle = paddleX;
+    rightOfPaddle = paddleX + PADDLE_WIDTH;
+    topOfThePaddle = paddleY;
+    bottomOfThePaddle = paddleY + PADDLE_HEIGHT;
+
+    if (leftOfTheBall > rightOfPaddle)
+    {
+        return 0;
+    }
+    if (rightOfTheBall < leftOfPaddle)
+    {
+        return 0;
+    }
+    if (topOfTheBall > bottomOfThePaddle)
+    {
+        return 0;
+    }
+    if (bottomOfTheBall < topOfThePaddle)
+    {
+        return 0;
+    }
+    return 1;
+}
+
+GameState MoveBall(GameState game)
+{
+
+    /* Move the ball by its motion vector. */
+    game.ballX += game.ballDx;
+    game.ballY += game.ballDy;
+
+    /* Turn the ball around if it hits the edge of the screen. */
+    if (game.ballX < 0)
+    {
+
+        game.score2 += 1;
+        game = InitGame(game);
+    }
+
+    if (game.ballX > SCREEN_WIDTH - 10)
+    {
+
+        game.score1 += 1;
+        game = InitGame(game);
+    }
+
+    if (game.ballY < 0 || game.ballY > SCREEN_HEIGHT - 10)
+    {
+
+        game.ballDy = -game.ballDy;
+    }
+
+    // check for collision with the paddle
+    int player;
+
+    for (player = 0; player < 2; player++)
+    {
+        int paddle;
+
+        if (player == 0)
+        {
+            paddle = game.paddle1Y;
+        }
+        else
+        {
+            paddle = game.paddle2Y;
+        }
+
+        int collision = CheckCollision(game, player);
+
+        // collision detected
+        if (collision == 1)
+        {
+
+            // ball moving left
+            if (game.ballDx < 0)
+            {
+
+                game.ballDx -= 1;
+
+                // ball moving right
+            }
+            else
+            {
+
+                game.ballDx += 1;
+            }
+
+            // change ball direction
+            game.ballDx = -game.ballDx;
+
+            // change ball angle based on where on the paddle it hit
+            int hitPosition = (paddle + PADDLE_HEIGHT) - game.ballY;
+
+            if (hitPosition >= 0 && hitPosition < 7)
+            {
+                game.ballDy = 4;
+            }
+
+            if (hitPosition >= 7 && hitPosition < 14)
+            {
+                game.ballDy = 3;
+            }
+
+            if (hitPosition >= 14 && hitPosition < 21)
+            {
+                game.ballDy = 2;
+            }
+
+            if (hitPosition >= 21 && hitPosition < 28)
+            {
+                game.ballDy = 1;
+            }
+
+            if (hitPosition >= 28 && hitPosition < 32)
+            {
+                game.ballDy = 0;
+            }
+
+            if (hitPosition >= 32 && hitPosition < 39)
+            {
+                game.ballDy = -1;
+            }
+
+            if (hitPosition >= 39 && hitPosition < 46)
+            {
+                game.ballDy = -2;
+            }
+
+            if (hitPosition >= 46 && hitPosition < 53)
+            {
+                game.ballDy = -3;
+            }
+
+            if (hitPosition >= 53 && hitPosition <= 60)
+            {
+                game.ballDy = -4;
+            }
+
+            // ball moving right
+            if (game.ballDx > 0)
+            {
+
+                // teleport ball to avoid mutli collision glitch
+                if (game.ballX < 30)
+                {
+
+                    game.ballX = 30;
+                }
+
+                // ball moving left
+            }
+            else
+            {
+
+                // teleport ball to avoid mutli collision glitch
+                if (game.ballX > 600)
+                {
+
+                    game.ballX = 600;
+                }
+            }
+        }
+    }
+
+    return game;
+}
 
 void UpdatePaddlePosition(Session *session, int playerNumber, int paddleY)
 {
