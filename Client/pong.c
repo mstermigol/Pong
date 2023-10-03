@@ -1,6 +1,7 @@
 
 // Using libs SDL, glibc
 #include "SDL2/SDL.h" //SDL version 2.0
+#include ""
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -40,6 +41,7 @@ SDL_Surface *screen;
 SDL_Surface *title;
 SDL_Surface *end;
 SDL_Surface *numbermap;
+SDL_Texture *screen_texture;
 
 int Init(int width, int height);
 void DrawMenu();
@@ -56,8 +58,8 @@ GameState deserializeGameState(char *buffer, GameState game)
 
 	printf("Buffer: %s\n", buffer);
 
-	if (sscanf(buffer, "GameState %d %d %d %d %d %d %d %d", aux.ballX, aux.ballY, aux.ballDx, aux.ballDy,
-			   aux.paddle1Y, aux.paddle2Y, aux.score1, aux.score2) == 8)
+	if (sscanf(buffer, "GameState %d %d %d %d %d %d %d %d", &aux.ballX, &aux.ballY, &aux.ballDx, &aux.ballDy,
+			   &aux.paddle1Y, &aux.paddle2Y, &aux.score1, &aux.score2) == 8)
 	{
 		game.ballX = aux.ballX;
 		game.ballY = aux.ballY;
@@ -412,6 +414,14 @@ int main(int argc, char *argv[])
 
 	SDL_GetWindowSize(window, &SCREEN_WIDTH, &SCREEN_HEIGHT);
 
+	int sleep = 0;
+	int quit = 0;
+	int state = 0;
+	int r = 0;
+	Uint32 next_game_tick = SDL_GetTicks();
+
+	SDL_Surface *screen2 = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
+
 	while (1)
 	{
 		FD_ZERO(&readFileDescriptors);
@@ -436,7 +446,7 @@ int main(int argc, char *argv[])
 
 			printf("Received: %s\n", buffer);
 
-			if (strcmp(buffer, "GameState ") == 0)
+			if (strncmp(buffer, "GameState ", 9) == 0)
 			{
 				game = deserializeGameState(buffer, game);
 
@@ -447,18 +457,23 @@ int main(int argc, char *argv[])
 				if (keystate[SDL_SCANCODE_UP])
 				{
 					char message[1024];
-					snprintf(message, sizeof(message), "move 0 %d", playerNumber);
+					snprintf(message, sizeof(message), "Move 1 %d", playerNumber);
 					sendto(clientSocket, message, strlen(message), 0,
 						   (struct sockaddr *)&serverAddress, serverLen);
+					printf("Sent: %s\n", message);
 				}
 
 				if (keystate[SDL_SCANCODE_DOWN])
 				{
 					char message[1024];
-					snprintf(message, sizeof(message), "move 1 %d", playerNumber);
+					snprintf(message, sizeof(message), "Move 0 %d", playerNumber);
 					sendto(clientSocket, message, strlen(message), 0,
 						   (struct sockaddr *)&serverAddress, serverLen);
+					printf("Sent: %s\n", message);
 				}
+
+				// Clear the screen
+				SDL_FillRect(screen2, NULL, 0x00000000);
 
 				DrawNet();
 
@@ -474,12 +489,11 @@ int main(int argc, char *argv[])
 				// draw the score
 				DrawPlayer2Score(game);
 
-				SDL_UpdateTexture(screenTexture, NULL, screen->pixels, screen->w * sizeof(Uint32));
-				SDL_RenderCopy(renderer, screenTexture, NULL, NULL);
-
-				// draw to the display
-				SDL_RenderPresent(renderer);
+				SDL_BlitSurface(screen2, NULL, screen, NULL);
+				SDL_UpdateWindowSurface(window);
+				SDL_Flip(screen2);
 			}
+
 			if (bytesReceived < 0)
 			{
 				perror("Error receiving data");
@@ -487,6 +501,15 @@ int main(int argc, char *argv[])
 			}
 
 			buffer[bytesReceived] = '\0';
+
+			SDL_UpdateTexture(screenTexture, NULL, screen->pixels, screen->w * sizeof(Uint32));
+			SDL_RenderCopy(renderer, screenTexture, NULL, NULL);
+
+			// draw to the display
+			SDL_RenderPresent(renderer);
+
+			// Add a delay between frames
+			SDL_Delay(16);
 		}
 	}
 
@@ -494,6 +517,7 @@ int main(int argc, char *argv[])
 
 	// free loaded images
 	SDL_FreeSurface(screen);
+	SDL_FreeSurface(screen2);
 	SDL_FreeSurface(title);
 	SDL_FreeSurface(numbermap);
 	SDL_FreeSurface(end);
