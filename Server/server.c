@@ -334,6 +334,26 @@ int CheckScore(Session *session)
     return 3;
 }
 
+void SendStartMessage(Session *session) {
+    char startMessage[] = "start";
+    for (int i = 0; i < session->numClients; i++) {
+        ssize_t bytesSent = sendto(session->clients[i].socket, startMessage, strlen(startMessage), 0, (struct sockaddr *)&session->clients[i].address, sizeof(session->clients[i].address));
+        if (bytesSent == -1) {
+            perror("Send error");
+        }
+    }
+}
+
+void SendEndMessage(Session *session) {
+    char endMessage[] = "end";
+    for (int i = 0; i < session->numClients; i++) {
+        ssize_t bytesSent = sendto(session->clients[i].socket, endMessage, strlen(endMessage), 0, (struct sockaddr *)&session->clients[i].address, sizeof(session->clients[i].address));
+        if (bytesSent == -1) {
+            perror("Send error");
+        }
+    }
+}
+
 void *BroadcastGameState(Session session, int serverSocket)
 {
     char message[256];
@@ -365,6 +385,7 @@ void *BroadcastGameState(Session session, int serverSocket)
         if (winner != 3)
         {
             printf("Player %d wins!\n", winner);
+            SendEndMessage(&session);
             session.numClients = 0;
             session.gameStarted = 0;
         }
@@ -412,7 +433,6 @@ int main(int argc, char *argv[])
 
     printf("Server started on port %d\n", atoi(argv[1]));
 
-    // Initialize the GameState structure
     session.gameState = InitGame(session.gameState);
     session.gameState.score1 = 0;
     session.gameState.score2 = 0;
@@ -485,6 +505,7 @@ int main(int argc, char *argv[])
                                 if (session.numClients == MAX_CLIENTS)
                                 {
                                     session.gameStarted = 1;
+                                    SendStartMessage(&session);
                                     printf("Game started!\n");
 
                                     pthread_t broadcastThread;
@@ -527,7 +548,6 @@ int main(int argc, char *argv[])
                         {
                             if (player == 0 || player == 1)
                             {
-                                // Update the paddle position using the new function
                                 session.gameState = MovePaddle(number, player, session.gameState);
                             }
                             else
