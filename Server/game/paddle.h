@@ -1,37 +1,75 @@
-#include "headers/game.h"
+#include "config.h"
+#include "game.h"
 
-Paddle paddle[2];
-
-static void MovePaddle(int d, int pad)
+GameState MovePaddle(int upOrDown, int player, GameState game)
 {
 
-    // if the down arrow is pressed move paddle down
-    if (d == 0)
+    if (player == 0)
     {
-        if (paddle[pad].y >= screen->h - paddle[pad].h)
+        if (upOrDown == 0)
         {
 
-            paddle[pad].y = screen->h - paddle[pad].h;
+            if (game.paddle1Y >= SCREEN_HEIGHT - PADDLE_HEIGHT)
+            {
+
+                game.paddle1Y = SCREEN_HEIGHT - PADDLE_HEIGHT;
+            }
+            else
+            {
+
+                game.paddle1Y += 5;
+            }
         }
-        else
+
+        // if the up arrow is pressed move paddle up
+        if (upOrDown == 1)
         {
 
-            paddle[pad].y += 5;
+            if (game.paddle1Y <= 0)
+            {
+
+                game.paddle1Y = 0;
+            }
+            else
+            {
+
+                game.paddle1Y -= 5;
+            }
+        }
+    }
+    else
+    {
+        if (upOrDown == 0)
+        {
+
+            if (game.paddle2Y >= SCREEN_HEIGHT - PADDLE_HEIGHT)
+            {
+
+                game.paddle2Y = SCREEN_HEIGHT - PADDLE_HEIGHT;
+            }
+            else
+            {
+
+                game.paddle2Y += 5;
+            }
+        }
+
+        // if the up arrow is pressed move paddle up
+        if (upOrDown == 1)
+        {
+
+            if (game.paddle2Y <= 0)
+            {
+
+                game.paddle2Y = 0;
+            }
+            else
+            {
+
+                game.paddle2Y -= 5;
+            }
         }
     }
 
-    // if the up arrow is pressed move paddle up
-    if (d == 1)
-    {
-        if (paddle[pad].y <= 0)
-        {
-
-            paddle[pad].y = 0;
-        }
-        else
-        {
-
-            paddle[pad].y -= 5;
-        }
-    }
+    return game;
 }
