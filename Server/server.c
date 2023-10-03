@@ -10,7 +10,6 @@
 #include "game/game.h"
 #include "game/ball.h"
 
-
 #define MAX_CLIENTS 2
 #define MAX_NICKNAME_LEN 20
 #define WINNING_SCORE 10
@@ -35,11 +34,11 @@ typedef struct
 
 void UpdatePaddlePosition(Session *session, int playerNumber, int paddleY)
 {
-    if (playerNumber == 1)
+    if (playerNumber == 0)
     {
         session->gameState.paddle1Y += paddleY;
     }
-    else if (playerNumber == 2)
+    else if (playerNumber == 1)
     {
         session->gameState.paddle2Y += paddleY;
     }
@@ -82,7 +81,6 @@ void *BroadcastGameState(void *arg)
         }
 
         printf("Broadcast: %s\n", message);
-        
 
         usleep(100000);
     }
@@ -179,7 +177,7 @@ int main(int argc, char *argv[])
                                 Client newClient;
                                 strncpy(newClient.name, nickname, MAX_NICKNAME_LEN);
                                 newClient.socket = serverSocket;
-                                newClient.playerNumber = session.numClients + 1;
+                                newClient.playerNumber = session.numClients;
                                 newClient.address = clientAddress;
                                 session.clients[session.numClients] = newClient;
 
@@ -238,7 +236,7 @@ int main(int argc, char *argv[])
                         int number, player;
                         if (sscanf(buffer, "move %d %d", &number, &player) == 2)
                         {
-                            if (player == 1 || player == 2)
+                            if (player == 0 || player == 1)
                             {
                                 // Update the paddle position using the new function
                                 UpdatePaddlePosition(&session, player, number);
@@ -266,7 +264,7 @@ int main(int argc, char *argv[])
                                     session.numClients = 0;
 
                                     // Reset GameState
-                                    
+
                                     session.gameState = InitGame(session.gameState);
                                     session.gameState.score1 = 0;
                                     session.gameState.score2 = 0;
