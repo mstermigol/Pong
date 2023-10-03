@@ -10,7 +10,7 @@
 
 #define MAX_CLIENTS 2
 #define MAX_NICKNAME_LEN 20
-#define WINNING_SCORE 10
+#define WINNING_SCORE 1
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 #define PADDLE_WIDTH 10
@@ -325,32 +325,48 @@ int CheckScore(Session *session)
 {
     if (session->gameState.score1 >= WINNING_SCORE)
     {
-        return 1;
+        return 0;
     }
     else if (session->gameState.score2 >= WINNING_SCORE)
     {
-        return 2;
+        return 1;
     }
-    return 0;
+    return 3;
 }
 
-void *BroadcastGameState(void *arg)
+void *BroadcastGameState(Session session, int serverSocket)
 {
-    Session *session = (Session *)arg;
     char message[256];
 
     while (1)
     {
+        session.gameState = MoveBall(session.gameState);
+
+        int winner = CheckScore(&session);
+
+        if (winner != 3)
+        {
+            printf("Player %d wins!\n", winner);
+
+            for (int j = 0; j < session.numClients; j++)
+            {
+                close(session.clients[j].socket);
+            }
+            session.numClients = 0;
+
+            close(serverSocket);
+        }
+
         // Create a message using the GameState structure
         snprintf(message, sizeof(message), "GameState: ballX %d, ballY %d, ballDx %d, ballDy %d, paddle1Y %d, paddle2Y %d, score1 %d, score2 %d",
-                 session->gameState.ballX, session->gameState.ballY,
-                 session->gameState.ballDx, session->gameState.ballDy,
-                 session->gameState.paddle1Y, session->gameState.paddle2Y,
-                 session->gameState.score1, session->gameState.score2);
+                 session.gameState.ballX, session.gameState.ballY,
+                 session.gameState.ballDx, session.gameState.ballDy,
+                 session.gameState.paddle1Y, session.gameState.paddle2Y,
+                 session.gameState.score1, session.gameState.score2);
 
-        for (int j = 0; j < session->numClients; j++)
+        for (int j = 0; j < session.numClients; j++)
         {
-            ssize_t bytesSent = sendto(session->clients[j].socket, message, strlen(message), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
+            ssize_t bytesSent = sendto(session.clients[j].socket, message, strlen(message), 0, (struct sockaddr *)&session.clients[j].address, sizeof(session.clients[j].address));
             if (bytesSent == -1)
             {
                 perror("Send error");
@@ -476,7 +492,7 @@ int main(int argc, char *argv[])
                                     printf("Game started!\n");
 
                                     pthread_t broadcastThread;
-                                    pthread_create(&broadcastThread, NULL, BroadcastGameState, &session);
+                                    pthread_create(&broadcastThread, NULL, BroadcastGameState(session, serverSocket), &session);
                                 }
                             }
                         }
@@ -516,38 +532,7 @@ int main(int argc, char *argv[])
                             if (player == 0 || player == 1)
                             {
                                 // Update the paddle position using the new function
-                                UpdatePaddlePosition(&session, player, number);
-                                int winner = CheckWinner(&session);
-
-                                if (winner != 0)
-                                {
-                                    printf("Player %d wins!\n", winner);
-
-                                    char winnerMessage[64];
-                                    snprintf(winnerMessage, sizeof(winnerMessage), "Player %d wins the game!", winner);
-                                    for (int j = 0; j < session.numClients; j++)
-                                    {
-                                        ssize_t bytesSent = sendto(session.clients[j].socket, winnerMessage, strlen(winnerMessage), 0, (struct sockaddr *)&session.clients[j].address, sizeof(session.clients[j].address));
-                                        if (bytesSent == -1)
-                                        {
-                                            perror("Send error");
-                                        }
-                                    }
-
-                                    for (int j = 0; j < session.numClients; j++)
-                                    {
-                                        close(session.clients[j].socket);
-                                    }
-                                    session.numClients = 0;
-
-                                    // Reset GameState
-
-                                    session.gameState = InitGame(session.gameState);
-                                    session.gameState.score1 = 0;
-                                    session.gameState.score2 = 0;
-                                    session.gameStarted = 0;
-                                    printf("Game ended. Waiting for new players...\n");
-                                }
+                                session.gameState = MovePaddle(number, player, session.gameState);
                             }
                             else
                             {

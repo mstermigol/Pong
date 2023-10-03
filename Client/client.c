@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
         if (key == 'w')
         {
             char buffer[1024];
-            snprintf(buffer, sizeof(buffer), "move 1 %d", playerNumber);
+            snprintf(buffer, sizeof(buffer), "move 0 %d", playerNumber);
             if (sendto(clientSocket, buffer, strlen(buffer), 0,
                        (struct sockaddr *)&serverAddress, serverLen) < 0)
             {
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
         else if (key == 's')
         {
             char buffer[1024];
-            snprintf(buffer, sizeof(buffer), "move 2 %d", playerNumber);
+            snprintf(buffer, sizeof(buffer), "move 1 %d", playerNumber);
             if (sendto(clientSocket, buffer, strlen(buffer), 0,
                        (struct sockaddr *)&serverAddress, serverLen) < 0)
             {
