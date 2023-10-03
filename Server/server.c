@@ -334,39 +334,39 @@ int CheckScore(Session *session)
     return 3;
 }
 
-void *BroadcastGameState(Session session, int serverSocket)
+void *BroadcastGameState(void *arg)
 {
     char message[256];
 
+    Session *session = (Session *)arg;
+
     while (1)
     {
-        session.gameState = MoveBall(session.gameState);
+        session->gameState = MoveBall(session->gameState);
 
-        int winner = CheckScore(&session);
+        int winner = CheckScore(session);
 
         if (winner != 3)
         {
             printf("Player %d wins!\n", winner);
 
-            for (int j = 0; j < session.numClients; j++)
+            for (int j = 0; j < session->numClients; j++)
             {
-                close(session.clients[j].socket);
+                close(session->clients[j].socket);
             }
-            session.numClients = 0;
-
-            close(serverSocket);
+            session->numClients = 0;
         }
 
         // Create a message using the GameState structure
         snprintf(message, sizeof(message), "GameState %d %d %d %d %d %d %d %d",
-                 session.gameState.ballX, session.gameState.ballY,
-                 session.gameState.ballDx, session.gameState.ballDy,
-                 session.gameState.paddle1Y, session.gameState.paddle2Y,
-                 session.gameState.score1, session.gameState.score2);
+                 session->gameState.ballX, session->gameState.ballY,
+                 session->gameState.ballDx, session->gameState.ballDy,
+                 session->gameState.paddle1Y, session->gameState.paddle2Y,
+                 session->gameState.score1, session->gameState.score2);
 
-        for (int j = 0; j < session.numClients; j++)
+        for (int j = 0; j < session->numClients; j++)
         {
-            ssize_t bytesSent = sendto(session.clients[j].socket, message, strlen(message), 0, (struct sockaddr *)&session.clients[j].address, sizeof(session.clients[j].address));
+            ssize_t bytesSent = sendto(session->clients[j].socket, message, strlen(message), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
             if (bytesSent == -1)
             {
                 perror("Send error");
@@ -492,7 +492,7 @@ int main(int argc, char *argv[])
                                     printf("Game started!\n");
 
                                     pthread_t broadcastThread;
-                                    pthread_create(&broadcastThread, NULL, BroadcastGameState(session, serverSocket), &session);
+                                    pthread_create(&broadcastThread, NULL, BroadcastGameState, &session);
                                 }
                             }
                         }
@@ -505,8 +505,9 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (session.gameStarted)
+        if (session.gameStarted==1)
         {
+            printf("Received: \n");
 
             for (int i = 0; i < session.numClients; i++)
             {
@@ -518,6 +519,8 @@ int main(int argc, char *argv[])
                     socklen_t addressLength = sizeof(clientAddress);
                     ssize_t bytesReceived = recvfrom(sd, buffer, sizeof(buffer), 0, (struct sockaddr *)&clientAddress, &addressLength);
 
+                    
+
                     if (bytesReceived == -1)
                     {
                         perror("Receive error");
@@ -527,11 +530,12 @@ int main(int argc, char *argv[])
                         buffer[bytesReceived] = '\0';
 
                         int number, player;
-                        if (sscanf(buffer, "move %d %d", &number, &player) == 2)
+                        if (sscanf(buffer, "Move %d %d", &number, &player) == 2)
                         {
                             if (player == 0 || player == 1)
                             {
-                                // Update the paddle position using the new function
+                                printf("Player %d moved paddle %d\n", player, number);
+
                                 session.gameState = MovePaddle(number, player, session.gameState);
                             }
                             else
@@ -547,4 +551,8 @@ int main(int argc, char *argv[])
 
     close(serverSocket);
     return 0;
+}
+
+GameState deserializeMoveBall(){
+
 }
