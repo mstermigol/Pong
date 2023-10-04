@@ -10,7 +10,7 @@
 
 #define MAX_CLIENTS 2
 #define MAX_NICKNAME_LEN 20
-#define WINNING_SCORE 1
+#define WINNING_SCORE 5
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 #define PADDLE_WIDTH 10
@@ -41,7 +41,7 @@ typedef struct
     int score1;
     int score2;
     int gameStarted;
-    GameState gameState; // GameState structure
+    GameState gameState;
     Client clients[MAX_CLIENTS];
     int numClients;
 } Session;
@@ -167,12 +167,9 @@ int CheckCollision(GameState game, int player)
 
 GameState MoveBall(GameState game)
 {
-
-    /* Move the ball by its motion vector. */
     game.ballX += game.ballDx;
     game.ballY += game.ballDy;
 
-    /* Turn the ball around if it hits the edge of the screen. */
     if (game.ballX < 0)
     {
 
@@ -193,7 +190,6 @@ GameState MoveBall(GameState game)
         game.ballDy = -game.ballDy;
     }
 
-    // check for collision with the paddle
     int player;
 
     for (player = 0; player < 2; player++)
@@ -211,17 +207,14 @@ GameState MoveBall(GameState game)
 
         int collision = CheckCollision(game, player);
 
-        // collision detected
         if (collision == 1)
         {
 
-            // ball moving left
             if (game.ballDx < 0)
             {
 
                 game.ballDx -= 1;
 
-                // ball moving right
             }
             else
             {
@@ -229,10 +222,8 @@ GameState MoveBall(GameState game)
                 game.ballDx += 1;
             }
 
-            // change ball direction
             game.ballDx = -game.ballDx;
 
-            // change ball angle based on where on the paddle it hit
             int hitPosition = (paddle + PADDLE_HEIGHT) - game.ballY;
 
             if (hitPosition >= 0 && hitPosition < 7)
@@ -280,23 +271,19 @@ GameState MoveBall(GameState game)
                 game.ballDy = -4;
             }
 
-            // ball moving right
             if (game.ballDx > 0)
             {
 
-                // teleport ball to avoid mutli collision glitch
                 if (game.ballX < 30)
                 {
 
                     game.ballX = 30;
                 }
 
-                // ball moving left
             }
             else
             {
 
-                // teleport ball to avoid mutli collision glitch
                 if (game.ballX > 600)
                 {
 
@@ -334,46 +321,38 @@ int CheckScore(Session *session)
     return 3;
 }
 
-void SendStartMessage(Session *session) {
-    char startMessage[] = "start";
-    for (int i = 0; i < session->numClients; i++) {
-        ssize_t bytesSent = sendto(session->clients[i].socket, startMessage, strlen(startMessage), 0, (struct sockaddr *)&session->clients[i].address, sizeof(session->clients[i].address));
-        if (bytesSent == -1) {
-            perror("Send error");
-        }
-    }
-}
-
-void SendEndMessage(Session *session) {
-    char endMessage[] = "end";
-    for (int i = 0; i < session->numClients; i++) {
-        ssize_t bytesSent = sendto(session->clients[i].socket, endMessage, strlen(endMessage), 0, (struct sockaddr *)&session->clients[i].address, sizeof(session->clients[i].address));
-        if (bytesSent == -1) {
-            perror("Send error");
-        }
-    }
-}
-
-void *BroadcastGameState(Session session, int serverSocket)
+void *BroadcastGameState(void *arg)
 {
     char message[256];
 
-    while (session.gameStarted)
+    Session *session = (Session *)arg;
+
+    while (1)
     {
-        session.gameState = MoveBall(session.gameState);
+        session->gameState = MoveBall(session->gameState);
 
-        int winner = CheckScore(&session);
+        int winner = CheckScore(session);
 
-        // Create a message using the GameState structure
-        snprintf(message, sizeof(message), "GameState: ballX %d, ballY %d, ballDx %d, ballDy %d, paddle1Y %d, paddle2Y %d, score1 %d, score2 %d",
-                 session.gameState.ballX, session.gameState.ballY,
-                 session.gameState.ballDx, session.gameState.ballDy,
-                 session.gameState.paddle1Y, session.gameState.paddle2Y,
-                 session.gameState.score1, session.gameState.score2);
-
-        for (int j = 0; j < session.numClients; j++)
+        if (winner != 3)
         {
-            ssize_t bytesSent = sendto(session.clients[j].socket, message, strlen(message), 0, (struct sockaddr *)&session.clients[j].address, sizeof(session.clients[j].address));
+            printf("Player %d wins!\n", winner);
+
+            for (int j = 0; j < session->numClients; j++)
+            {
+                close(session->clients[j].socket);
+            }
+            session->numClients = 0;
+        }
+
+        snprintf(message, sizeof(message), "GameState %d %d %d %d %d %d %d %d",
+                 session->gameState.ballX, session->gameState.ballY,
+                 session->gameState.ballDx, session->gameState.ballDy,
+                 session->gameState.paddle1Y, session->gameState.paddle2Y,
+                 session->gameState.score1, session->gameState.score2);
+
+        for (int j = 0; j < session->numClients; j++)
+        {
+            ssize_t bytesSent = sendto(session->clients[j].socket, message, strlen(message), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
             if (bytesSent == -1)
             {
                 perror("Send error");
@@ -382,18 +361,8 @@ void *BroadcastGameState(Session session, int serverSocket)
 
         printf("Broadcast: %s\n", message);
 
-        if (winner != 3)
-        {
-            printf("Player %d wins!\n", winner);
-            SendEndMessage(&session);
-            session.numClients = 0;
-            session.gameStarted = 0;
-        }
-
         usleep(100000);
     }
-
-    close(serverSocket);
 
     return NULL;
 }
@@ -505,11 +474,10 @@ int main(int argc, char *argv[])
                                 if (session.numClients == MAX_CLIENTS)
                                 {
                                     session.gameStarted = 1;
-                                    SendStartMessage(&session);
                                     printf("Game started!\n");
 
                                     pthread_t broadcastThread;
-                                    pthread_create(&broadcastThread, NULL, BroadcastGameState(session, serverSocket), &session);
+                                    pthread_create(&broadcastThread, NULL, BroadcastGameState, &session);
                                 }
                             }
                         }
@@ -522,8 +490,9 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (session.gameStarted)
+        if (session.gameStarted==1)
         {
+            printf("Received: \n");
 
             for (int i = 0; i < session.numClients; i++)
             {
@@ -535,6 +504,8 @@ int main(int argc, char *argv[])
                     socklen_t addressLength = sizeof(clientAddress);
                     ssize_t bytesReceived = recvfrom(sd, buffer, sizeof(buffer), 0, (struct sockaddr *)&clientAddress, &addressLength);
 
+                    
+
                     if (bytesReceived == -1)
                     {
                         perror("Receive error");
@@ -544,10 +515,12 @@ int main(int argc, char *argv[])
                         buffer[bytesReceived] = '\0';
 
                         int number, player;
-                        if (sscanf(buffer, "move %d %d", &number, &player) == 2)
+                        if (sscanf(buffer, "Move %d %d", &number, &player) == 2)
                         {
                             if (player == 0 || player == 1)
                             {
+                                printf("Player %d moved paddle %d\n", player, number);
+
                                 session.gameState = MovePaddle(number, player, session.gameState);
                             }
                             else
@@ -563,4 +536,8 @@ int main(int argc, char *argv[])
 
     close(serverSocket);
     return 0;
+}
+
+GameState deserializeMoveBall(){
+
 }
