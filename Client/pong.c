@@ -1,7 +1,6 @@
 
 // Using libs SDL, glibc
 #include "SDL2/SDL.h" //SDL version 2.0
-#include ""
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -440,11 +439,17 @@ int main(int argc, char *argv[])
 
 		if (FD_ISSET(clientSocket, &readFileDescriptors))
 		{
+			// Receive game state from server
 			char buffer[1024];
 			int bytesReceived = recvfrom(clientSocket, buffer, sizeof(buffer), 0,
 										 (struct sockaddr *)&serverAddress, &serverLen);
+			if (bytesReceived < 0)
+			{
+				perror("Error receiving data");
+				continue;
+			}
 
-			printf("Received: %s\n", buffer);
+			buffer[bytesReceived] = '\0';
 
 			if (strncmp(buffer, "GameState ", 9) == 0)
 			{
@@ -472,8 +477,8 @@ int main(int argc, char *argv[])
 					printf("Sent: %s\n", message);
 				}
 
-				// Clear the screen
-				SDL_FillRect(screen2, NULL, 0x00000000);
+				// Clear the screen surface
+				SDL_FillRect(screen, NULL, 0x00000000);
 
 				DrawNet();
 
@@ -489,35 +494,20 @@ int main(int argc, char *argv[])
 				// draw the score
 				DrawPlayer2Score(game);
 
-				SDL_BlitSurface(screen2, NULL, screen, NULL);
-				SDL_UpdateWindowSurface(window);
-				SDL_Flip(screen2);
+				// Copy the screen surface to the renderer
+				SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, screen);
+				SDL_RenderCopy(renderer, texture, NULL, NULL);
+				SDL_DestroyTexture(texture);
+
+				// Present the renderer to the screen
+				SDL_RenderPresent(renderer);
 			}
-
-			if (bytesReceived < 0)
-			{
-				perror("Error receiving data");
-				continue;
-			}
-
-			buffer[bytesReceived] = '\0';
-
-			SDL_UpdateTexture(screenTexture, NULL, screen->pixels, screen->w * sizeof(Uint32));
-			SDL_RenderCopy(renderer, screenTexture, NULL, NULL);
-
-			// draw to the display
-			SDL_RenderPresent(renderer);
-
-			// Add a delay between frames
-			SDL_Delay(16);
 		}
 	}
 
-	pthread_exit(NULL);
-
-	// free loaded images
+	// Free the screen surface and renderer
 	SDL_FreeSurface(screen);
-	SDL_FreeSurface(screen2);
+	SDL_DestroyRenderer(renderer);
 	SDL_FreeSurface(title);
 	SDL_FreeSurface(numbermap);
 	SDL_FreeSurface(end);
