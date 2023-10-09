@@ -7,8 +7,10 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <pthread.h>
+#include <fcntl.h>
+#include <errno.h>
 
-#define MAX_CLIENTS 2
+#define MAX_SESSIONS 2
 #define MAX_NICKNAME_LEN 20
 #define WINNING_SCORE 5
 #define SCREEN_WIDTH 640
@@ -30,21 +32,28 @@ typedef struct
 
 typedef struct
 {
+    int sessionId;
     char name[MAX_NICKNAME_LEN];
-    int socket;
     struct sockaddr_in address;
     int playerNumber;
 } Client;
 
 typedef struct
 {
-    int score1;
-    int score2;
+    int sessionId;
     int gameStarted;
-    GameState gameState; // GameState structure
-    Client clients[MAX_CLIENTS];
+    GameState gameState;
+    Client clients[2];
     int numClients;
+    int serverSocket;
 } Session;
+
+typedef struct
+{
+    char message[9];
+    struct sockaddr_in addressFromClient;
+    Session *sessions[MAX_SESSIONS];
+} Message;
 
 GameState InitGame(GameState game)
 {
@@ -167,12 +176,9 @@ int CheckCollision(GameState game, int player)
 
 GameState MoveBall(GameState game)
 {
-
-    /* Move the ball by its motion vector. */
     game.ballX += game.ballDx;
     game.ballY += game.ballDy;
 
-    /* Turn the ball around if it hits the edge of the screen. */
     if (game.ballX < 0)
     {
 
@@ -193,7 +199,6 @@ GameState MoveBall(GameState game)
         game.ballDy = -game.ballDy;
     }
 
-    // check for collision with the paddle
     int player;
 
     for (player = 0; player < 2; player++)
@@ -211,17 +216,13 @@ GameState MoveBall(GameState game)
 
         int collision = CheckCollision(game, player);
 
-        // collision detected
         if (collision == 1)
         {
 
-            // ball moving left
             if (game.ballDx < 0)
             {
 
                 game.ballDx -= 1;
-
-                // ball moving right
             }
             else
             {
@@ -229,10 +230,8 @@ GameState MoveBall(GameState game)
                 game.ballDx += 1;
             }
 
-            // change ball direction
             game.ballDx = -game.ballDx;
 
-            // change ball angle based on where on the paddle it hit
             int hitPosition = (paddle + PADDLE_HEIGHT) - game.ballY;
 
             if (hitPosition >= 0 && hitPosition < 7)
@@ -280,23 +279,18 @@ GameState MoveBall(GameState game)
                 game.ballDy = -4;
             }
 
-            // ball moving right
             if (game.ballDx > 0)
             {
 
-                // teleport ball to avoid mutli collision glitch
                 if (game.ballX < 30)
                 {
 
                     game.ballX = 30;
                 }
-
-                // ball moving left
             }
             else
             {
 
-                // teleport ball to avoid mutli collision glitch
                 if (game.ballX > 600)
                 {
 
@@ -334,13 +328,13 @@ int CheckScore(Session *session)
     return 3;
 }
 
-void *BroadcastGameState(void *arg)
+void *GameLogicAndBroadcast(void *arg)
 {
     char message[256];
 
     Session *session = (Session *)arg;
 
-    while (1)
+    while (session->gameStarted > 0)
     {
         session->gameState = MoveBall(session->gameState);
 
@@ -348,34 +342,34 @@ void *BroadcastGameState(void *arg)
 
         if (winner != 3)
         {
-            printf("Player %d wins!\n", winner);
+            printf("Player %d wins in session %d!\n", winner, session->sessionId);
+
+            session->numClients = 0;
+            session->gameStarted = 0;
+            session->gameState = InitGame(session->gameState);
+            session->gameState.score1 = 0;
+            session->gameState.score2 = 0;
+            pthread_exit(NULL);
+        }
+        else
+        {
+            snprintf(message, sizeof(message), "GameState %d %d %d %d %d %d %d %d",
+                     session->gameState.ballX, session->gameState.ballY,
+                     session->gameState.ballDx, session->gameState.ballDy,
+                     session->gameState.paddle1Y, session->gameState.paddle2Y,
+                     session->gameState.score1, session->gameState.score2);
 
             for (int j = 0; j < session->numClients; j++)
             {
-                close(session->clients[j].socket);
+                ssize_t bytesSent = sendto(session->serverSocket, message, strlen(message), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
+                if (bytesSent == -1)
+                {
+                    perror("Send error");
+                }
             }
-            session->numClients = 0;
+
+            usleep(100000);
         }
-
-        // Create a message using the GameState structure
-        snprintf(message, sizeof(message), "GameState %d %d %d %d %d %d %d %d",
-                 session->gameState.ballX, session->gameState.ballY,
-                 session->gameState.ballDx, session->gameState.ballDy,
-                 session->gameState.paddle1Y, session->gameState.paddle2Y,
-                 session->gameState.score1, session->gameState.score2);
-
-        for (int j = 0; j < session->numClients; j++)
-        {
-            ssize_t bytesSent = sendto(session->clients[j].socket, message, strlen(message), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
-            if (bytesSent == -1)
-            {
-                perror("Send error");
-            }
-        }
-
-        printf("Broadcast: %s\n", message);
-
-        usleep(100000);
     }
 
     return NULL;
@@ -391,15 +385,25 @@ int main(int argc, char *argv[])
 
     int serverSocket;
     struct sockaddr_in serverAddress;
-    fd_set readfds;
-    int maxSocketDescriptor;
-    Session session;
-    session.numClients = 0;
-    session.gameStarted = 0;
+    Session sessions[MAX_SESSIONS];
 
     if ((serverSocket = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
     {
         perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    int flags = fcntl(serverSocket, F_GETFL, 0);
+    if (flags < 0)
+    {
+        perror("Failed to get socket flags");
+        close(serverSocket);
+        exit(EXIT_FAILURE);
+    }
+    if (fcntl(serverSocket, F_SETFL, flags | O_NONBLOCK) < 0)
+    {
+        perror("Failed to set socket to non-blocking mode");
+        close(serverSocket);
         exit(EXIT_FAILURE);
     }
 
@@ -416,134 +420,108 @@ int main(int argc, char *argv[])
 
     printf("Server started on port %d\n", atoi(argv[1]));
 
-    // Initialize the GameState structure
-    session.gameState = InitGame(session.gameState);
-    session.gameState.score1 = 0;
-    session.gameState.score2 = 0;
+    for (int i = 0; i < MAX_SESSIONS; i++)
+    {
+        sessions[i].numClients = 0;
+        sessions[i].gameStarted = 0;
+        sessions[i].gameState = InitGame(sessions[i].gameState);
+        sessions[i].gameState.score1 = 0;
+        sessions[i].gameState.score2 = 0;
+        sessions[i].serverSocket = serverSocket;
+        sessions[i].sessionId = i;
+    }
 
     while (1)
     {
-        FD_ZERO(&readfds);
-        FD_SET(serverSocket, &readfds);
-        maxSocketDescriptor = serverSocket;
+        char buffer[1024];
+        struct sockaddr_in clientAddress;
+        socklen_t addressLength = sizeof(clientAddress);
+        ssize_t bytesReceived = recvfrom(serverSocket, buffer, sizeof(buffer), 0, (struct sockaddr *)&clientAddress, &addressLength);
 
-        for (int i = 0; i < session.numClients; i++)
+        if (bytesReceived < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
         {
-            int sd = session.clients[i].socket;
-            FD_SET(sd, &readfds);
-            if (sd > maxSocketDescriptor)
-            {
-                maxSocketDescriptor = sd;
-            }
+            continue;
         }
-
-        if (select(maxSocketDescriptor + 1, &readfds, NULL, NULL, NULL) == -1)
+        else
         {
-            perror("Select error");
-            exit(EXIT_FAILURE);
-        }
+            buffer[bytesReceived] = '\0';
 
-        if (session.gameStarted == 0)
-        {
-            if (FD_ISSET(serverSocket, &readfds))
+            if (strncmp(buffer, "name ", 5) == 0)
             {
-                char buffer[1024];
-                struct sockaddr_in clientAddress;
-                socklen_t addressLength = sizeof(clientAddress);
-                ssize_t bytesReceived = recvfrom(serverSocket, buffer, sizeof(buffer), 0, (struct sockaddr *)&clientAddress, &addressLength);
-
-                if (bytesReceived == -1)
+                for (int i = 0; i < MAX_SESSIONS; i++)
                 {
-                    perror("Receive error");
-                }
-                else
-                {
-                    buffer[bytesReceived] = '\0';
-
-                    if (session.numClients < MAX_CLIENTS)
+                    if (sessions[i].numClients < 2)
                     {
-                        if (strncmp(buffer, "name ", 5) == 0)
+                        char nickname[MAX_NICKNAME_LEN];
+                        Client newClient;
+                        strncpy(newClient.name, nickname, MAX_NICKNAME_LEN);
+                        newClient.playerNumber = sessions[i].numClients;
+                        newClient.address = clientAddress;
+                        newClient.sessionId = i;
+                        sessions[i].clients[sessions[i].numClients] = newClient;
+
+                        char playerNumber[2];
+                        snprintf(playerNumber, sizeof(playerNumber), "%d", newClient.playerNumber);
+                        ssize_t bytesSent = sendto(serverSocket, playerNumber, strlen(playerNumber), 0, (struct sockaddr *)&newClient.address, sizeof(newClient.address));
+                        if (bytesSent == -1)
                         {
-                            char nickname[MAX_NICKNAME_LEN];
-                            if (sscanf(buffer, "name %s", nickname) == 1)
-                            {
-                                Client newClient;
-                                strncpy(newClient.name, nickname, MAX_NICKNAME_LEN);
-                                newClient.socket = serverSocket;
-                                newClient.playerNumber = session.numClients;
-                                newClient.address = clientAddress;
-                                session.clients[session.numClients] = newClient;
-
-                                char playerNumber[2];
-                                snprintf(playerNumber, sizeof(playerNumber), "%d", newClient.playerNumber);
-                                ssize_t bytesSent = sendto(newClient.socket, playerNumber, strlen(playerNumber), 0, (struct sockaddr *)&newClient.address, sizeof(newClient.address));
-                                if (bytesSent == -1)
-                                {
-                                    perror("Send error");
-                                }
-
-                                session.numClients++;
-
-                                printf("Client %s connected as Player %d\n", newClient.name, newClient.playerNumber);
-
-                                if (session.numClients == MAX_CLIENTS)
-                                {
-                                    session.gameStarted = 1;
-                                    printf("Game started!\n");
-
-                                    pthread_t broadcastThread;
-                                    pthread_create(&broadcastThread, NULL, BroadcastGameState, &session);
-                                }
-                            }
+                            perror("Send error");
                         }
+
+                        sessions[i].numClients++;
+
+                        printf("Client %s connected as Player %d, %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
+
+                        if (sessions[i].numClients == 2)
+                        {
+                            sessions[i].gameStarted = 1;
+                            printf("Game started in session %d!\n", sessions[i].sessionId);
+
+                            pthread_t GameLogicAndBroadcastThread;
+                            pthread_create(&GameLogicAndBroadcastThread, NULL, GameLogicAndBroadcast, &sessions[i]);
+                        }
+                        break;
                     }
                     else
                     {
-                        printf("Maximum number of players reached. Ignoring client request.\n");
+                        if (i == MAX_SESSIONS - 1)
+                        {
+                            printf("No space available. Ignoring client request.\n");
+                        }
                     }
                 }
             }
-        }
-
-        if (session.gameStarted==1)
-        {
-            printf("Received: \n");
-
-            for (int i = 0; i < session.numClients; i++)
+            else
             {
-                int sd = session.clients[i].socket;
-                if (FD_ISSET(sd, &readfds))
+                int numSession;
+
+
+                for (int i = 0; i < MAX_SESSIONS; i++)
                 {
-                    char buffer[1024];
-                    struct sockaddr_in clientAddress;
-                    socklen_t addressLength = sizeof(clientAddress);
-                    ssize_t bytesReceived = recvfrom(sd, buffer, sizeof(buffer), 0, (struct sockaddr *)&clientAddress, &addressLength);
-
-                    
-
-                    if (bytesReceived == -1)
+                    for (int j = 0; j < 2; j++)
                     {
-                        perror("Receive error");
-                    }
-                    else
-                    {
-                        buffer[bytesReceived] = '\0';
+                        if (memcmp(&clientAddress.sin_addr, &sessions[i].clients[j].address.sin_addr, sizeof(struct in_addr)) == 0 && clientAddress.sin_port == sessions[i].clients[j].address.sin_port)
 
-                        int number, player;
-                        if (sscanf(buffer, "Move %d %d", &number, &player) == 2)
                         {
-                            if (player == 0 || player == 1)
-                            {
-                                printf("Player %d moved paddle %d\n", player, number);
 
-                                session.gameState = MovePaddle(number, player, session.gameState);
-                            }
-                            else
-                            {
-                                printf("Invalid player number: %d\n", player);
-                            }
+                            numSession = i;
+                            printf("Se escogio %d\n", i);
+                            break;
                         }
                     }
+                }
+
+
+                int number, player;
+                if (sscanf(buffer, "Move %d %d", &number, &player) == 2)
+                {
+                    if (player == 0 || player == 1)
+                    {
+                        printf("Player %d with number %d in session %d, moved a paddle\n", player, number, numSession);
+
+                        sessions[numSession].gameState = MovePaddle(number, player, sessions[numSession].gameState);
+                    }
+
                 }
             }
         }
