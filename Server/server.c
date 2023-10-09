@@ -10,7 +10,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#define MAX_CLIENTS 2
+#define MAX_SESSIONS 2
 #define MAX_NICKNAME_LEN 20
 #define WINNING_SCORE 1
 #define SCREEN_WIDTH 640
@@ -32,6 +32,7 @@ typedef struct
 
 typedef struct
 {
+    int sessionId;
     char name[MAX_NICKNAME_LEN];
     struct sockaddr_in address;
     int playerNumber;
@@ -39,12 +40,20 @@ typedef struct
 
 typedef struct
 {
+    int sessionId;
     int gameStarted;
     GameState gameState;
-    Client clients[MAX_CLIENTS];
+    Client clients[2];
     int numClients;
     int serverSocket;
 } Session;
+
+typedef struct
+{
+    char message[9];
+    struct sockaddr_in addressFromClient;
+    Session* sessions[MAX_SESSIONS];
+} Message;
 
 GameState InitGame(GameState game)
 {
@@ -333,7 +342,7 @@ void *GameLogicAndBroadcast(void *arg)
 
         if (winner != 3)
         {
-            printf("Player %d wins!\n", winner);
+            printf("Player %d wins in session %d!\n", winner, session->sessionId);
 
             session->numClients = 0;
             session->gameStarted = 0;
@@ -343,11 +352,13 @@ void *GameLogicAndBroadcast(void *arg)
         }
         else
         {
+#if 0
             snprintf(message, sizeof(message), "GameState %d %d %d %d %d %d %d %d",
                      session->gameState.ballX, session->gameState.ballY,
                      session->gameState.ballDx, session->gameState.ballDy,
                      session->gameState.paddle1Y, session->gameState.paddle2Y,
                      session->gameState.score1, session->gameState.score2);
+#endif
 
             for (int j = 0; j < session->numClients; j++)
             {
@@ -358,13 +369,47 @@ void *GameLogicAndBroadcast(void *arg)
                 }
             }
 
-            printf("Broadcast: %s\n", message);
+            // printf("Broadcast: %s\n", message);
 
             usleep(100000);
         }
     }
 
     return NULL;
+}
+
+void *ClientMessageProcessing(void *arg)
+{
+    Message *msg = (Message *)arg;
+    int numSession;
+
+    for (int i = 0; i < MAX_SESSIONS; i++)
+    {
+        for (int j = 0; i < 2; i++)
+        {
+            if (memcmp(&msg->addressFromClient.sin_addr, &msg->sessions[i]->clients[j].address.sin_addr, sizeof(struct in_addr)) == 1 && &msg->addressFromClient.sin_port == &msg->sessions[i]->clients[j].address.sin_port)
+            {
+                numSession = i;
+                break;
+            }
+        }
+    }
+
+    int number, player;
+    if (sscanf(msg->message, "Move %d %d", &number, &player) == 2)
+    {
+        if (player == 0 || player == 1)
+        {
+            printf("Player %d moved paddle %d\n", player, number);
+
+            msg->sessions[numSession]->gameState = MovePaddle(number, player, msg->sessions[numSession]->gameState);
+        }
+        else
+        {
+            printf("Invalid player number: %d\n", player);
+        }
+    }
+    pthread_exit(NULL);
 }
 
 int main(int argc, char *argv[])
@@ -377,9 +422,7 @@ int main(int argc, char *argv[])
 
     int serverSocket;
     struct sockaddr_in serverAddress;
-    Session session;
-    session.numClients = 0;
-    session.gameStarted = 0;
+    Session sessions[MAX_SESSIONS];
 
     if ((serverSocket = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
     {
@@ -414,112 +457,97 @@ int main(int argc, char *argv[])
 
     printf("Server started on port %d\n", atoi(argv[1]));
 
-    session.gameState = InitGame(session.gameState);
-    session.gameState.score1 = 0;
-    session.gameState.score2 = 0;
-    session.serverSocket = serverSocket;
+    for (int i = 0; i < MAX_SESSIONS; i++)
+    {
+        sessions[i].numClients = 0;
+        sessions[i].gameStarted = 0;
+        sessions[i].gameState = InitGame(sessions[i].gameState);
+        sessions[i].gameState.score1 = 0;
+        sessions[i].gameState.score2 = 0;
+        sessions[i].serverSocket = serverSocket;
+        sessions[i].sessionId = i;
+    }
 
     while (1)
     {
+        char buffer[1024];
+        struct sockaddr_in clientAddress;
+        socklen_t addressLength = sizeof(clientAddress);
+        ssize_t bytesReceived = recvfrom(serverSocket, buffer, sizeof(buffer), 0, (struct sockaddr *)&clientAddress, &addressLength);
 
-        if (session.gameStarted == 0)
+        if (bytesReceived < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
         {
-            char buffer[1024];
-            struct sockaddr_in clientAddress;
-            socklen_t addressLength = sizeof(clientAddress);
-            ssize_t bytesReceived = recvfrom(serverSocket, buffer, sizeof(buffer), 0, (struct sockaddr *)&clientAddress, &addressLength);
+            continue;
+        }
+        else
+        {
+            buffer[bytesReceived] = '\0';
 
-            if (bytesReceived < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+            if (strncmp(buffer, "name ", 5) == 0)
             {
-                continue;
+                for (int i = 0; i < MAX_SESSIONS; i++)
+                {
+                    if (sessions[i].numClients < 2)
+                    {
+                        char nickname[MAX_NICKNAME_LEN];
+                        Client newClient;
+                        strncpy(newClient.name, nickname, MAX_NICKNAME_LEN);
+                        newClient.playerNumber = sessions[i].numClients;
+                        newClient.address = clientAddress;
+                        newClient.sessionId = i;
+                        sessions[i].clients[sessions[i].numClients] = newClient;
+
+                        char playerNumber[2];
+                        snprintf(playerNumber, sizeof(playerNumber), "%d", newClient.playerNumber);
+                        ssize_t bytesSent = sendto(serverSocket, playerNumber, strlen(playerNumber), 0, (struct sockaddr *)&newClient.address, sizeof(newClient.address));
+                        if (bytesSent == -1)
+                        {
+                            perror("Send error");
+                        }
+
+                        sessions[i].numClients++;
+
+                        printf("Client %s connected as Player %d, %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
+
+                        if (sessions[i].numClients == 2)
+                        {
+                            sessions[i].gameStarted = 1;
+                            printf("Game started in session %d!\n", sessions[i].sessionId);
+
+                            pthread_t GameLogicAndBroadcastThread;
+                            pthread_create(&GameLogicAndBroadcastThread, NULL, GameLogicAndBroadcast, &sessions[i]);
+                            pthread_detach(GameLogicAndBroadcastThread);
+                        }
+                        break;
+                    }
+                    else
+                    {
+                        if (i == MAX_SESSIONS - 1)
+                        {
+                            printf("No space available. Ignoring client request.\n");
+                        }
+                    }
+                }
             }
             else
             {
-                buffer[bytesReceived] = '\0';
+                Message newMessage;
 
-                if (session.numClients < MAX_CLIENTS)
+                newMessage.addressFromClient = clientAddress;
+                strncpy(newMessage.message, buffer, sizeof(newMessage.message));
+                for (int i = 0; i < MAX_SESSIONS; i++)
                 {
-                    if (strncmp(buffer, "name ", 5) == 0)
-                    {
-                        char nickname[MAX_NICKNAME_LEN];
-                        if (sscanf(buffer, "name %s", nickname) == 1)
-                        {
-                            Client newClient;
-                            strncpy(newClient.name, nickname, MAX_NICKNAME_LEN);
-                            newClient.playerNumber = session.numClients;
-                            newClient.address = clientAddress;
-                            session.clients[session.numClients] = newClient;
-
-                            char playerNumber[2];
-                            snprintf(playerNumber, sizeof(playerNumber), "%d", newClient.playerNumber);
-                            ssize_t bytesSent = sendto(serverSocket, playerNumber, strlen(playerNumber), 0, (struct sockaddr *)&newClient.address, sizeof(newClient.address));
-                            if (bytesSent == -1)
-                            {
-                                perror("Send error");
-                            }
-
-                            session.numClients++;
-
-                            printf("Client %s connected as Player %d\n", newClient.name, newClient.playerNumber);
-
-                            if (session.numClients == MAX_CLIENTS)
-                            {
-                                session.gameStarted = 1;
-                                printf("Game started!\n");
-
-                                pthread_t GameLogicAndBroadcastThread;
-                                pthread_create(&GameLogicAndBroadcastThread, NULL, GameLogicAndBroadcast, &session);
-                            }
-                        }
-                    }
+                    newMessage.sessions[i] = &sessions[i];
                 }
-                else
-                {
-                    printf("Maximum number of players reached. Ignoring client request.\n");
-                }
-            }
-        }
 
-        if (session.gameStarted)
-        {
-            for (int i = 0; i < session.numClients; i++)
-            {
-                char buffer[1024];
-                struct sockaddr_in clientAddress;
-                socklen_t addressLength = sizeof(clientAddress);
-                ssize_t bytesReceived = recvfrom(serverSocket, buffer, sizeof(buffer), 0, (struct sockaddr *)&clientAddress, &addressLength);
+                pthread_t ClientMessageProcessingThread;
 
-                if (bytesReceived < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
-                {
-                    continue;
-                }
-                else
-                {
-                    buffer[bytesReceived] = '\0';
-
-                    int number, player;
-                    if (sscanf(buffer, "Move %d %d", &number, &player) == 2)
-                    {
-                        if (player == 0 || player == 1)
-                        {
-                            printf("Player %d moved paddle %d\n", player, number);
-
-                            session.gameState = MovePaddle(number, player, session.gameState);
-                        }
-                        else
-                        {
-                            printf("Invalid player number: %d\n", player);
-                        }
-                    }
-                }
+                pthread_create(&ClientMessageProcessingThread, NULL, ClientMessageProcessing, &newMessage);
+                pthread_detach(ClientMessageProcessingThread);
             }
         }
     }
 
     close(serverSocket);
     return 0;
-}
-
-GameState deserializeMoveBall()
-{
 }
