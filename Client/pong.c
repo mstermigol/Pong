@@ -272,6 +272,7 @@ void DrawPaddle(GameState game)
 {
 
 	SDL_Rect source;
+
 	int i;
 
 	for (i = 0; i < 2; i++)
@@ -413,14 +414,6 @@ int main(int argc, char *argv[])
 
 	SDL_GetWindowSize(window, &SCREEN_WIDTH, &SCREEN_HEIGHT);
 
-	int sleep = 0;
-	int quit = 0;
-	int state = 0;
-	int r = 0;
-	Uint32 next_game_tick = SDL_GetTicks();
-
-	SDL_Surface *screen2 = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0, 0, 0, 0);
-
 	while (1)
 	{
 		FD_ZERO(&readFileDescriptors);
@@ -477,7 +470,7 @@ int main(int argc, char *argv[])
 					printf("Sent: %s\n", message);
 				}
 
-				// Clear the screen surface
+				SDL_RenderClear(renderer);
 				SDL_FillRect(screen, NULL, 0x00000000);
 
 				DrawNet();
@@ -493,6 +486,8 @@ int main(int argc, char *argv[])
 
 				// draw the score
 				DrawPlayer2Score(game);
+
+				SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
 				// Copy the screen surface to the renderer
 				SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, screen);
