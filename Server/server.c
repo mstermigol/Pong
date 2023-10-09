@@ -12,7 +12,7 @@
 
 #define MAX_SESSIONS 2
 #define MAX_NICKNAME_LEN 20
-#define WINNING_SCORE 1
+#define WINNING_SCORE 5
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 #define PADDLE_WIDTH 10
@@ -529,4 +529,8 @@ int main(int argc, char *argv[])
 
     close(serverSocket);
     return 0;
+}
+
+GameState deserializeMoveBall(){
+
 }
