@@ -9,6 +9,8 @@
 #include <pthread.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <time.h>
+#include <stdarg.h>
 
 #define MAX_SESSIONS 2
 #define MAX_NICKNAME_LEN 20
@@ -454,11 +456,14 @@ int main(int argc, char *argv[])
                     {
                         char nickname[MAX_NICKNAME_LEN];
                         Client newClient;
+                        strncpy(nickname, buffer + 5, MAX_NICKNAME_LEN);
+                        nickname[MAX_NICKNAME_LEN] = '\0';
                         strncpy(newClient.name, nickname, MAX_NICKNAME_LEN);
                         newClient.playerNumber = sessions[i].numClients;
                         newClient.address = clientAddress;
                         newClient.sessionId = i;
                         sessions[i].clients[sessions[i].numClients] = newClient;
+                        printf("Cliente con nombre %s \n", nickname);
 
                         char playerNumber[2];
                         snprintf(playerNumber, sizeof(playerNumber), "%d", newClient.playerNumber);
@@ -494,6 +499,8 @@ int main(int argc, char *argv[])
             else
             {
                 int numSession;
+                int numClient;
+
 
 
                 for (int i = 0; i < MAX_SESSIONS; i++)
@@ -503,9 +510,8 @@ int main(int argc, char *argv[])
                         if (memcmp(&clientAddress.sin_addr, &sessions[i].clients[j].address.sin_addr, sizeof(struct in_addr)) == 0 && clientAddress.sin_port == sessions[i].clients[j].address.sin_port)
 
                         {
-
                             numSession = i;
-                            printf("Se escogio %d\n", i);
+                            numClient = j;
                             break;
                         }
                     }
@@ -517,7 +523,7 @@ int main(int argc, char *argv[])
                 {
                     if (player == 0 || player == 1)
                     {
-                        printf("Player %d with number %d in session %d, moved a paddle\n", player, number, numSession);
+                        printf("Client %s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
 
                         sessions[numSession].gameState = MovePaddle(number, player, sessions[numSession].gameState);
                     }
