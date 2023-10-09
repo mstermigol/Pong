@@ -349,6 +349,7 @@ void *GameLogicAndBroadcast(void *arg)
             session->gameState = InitGame(session->gameState);
             session->gameState.score1 = 0;
             session->gameState.score2 = 0;
+            pthread_exit(NULL);
         }
         else
         {
@@ -478,7 +479,6 @@ int main(int argc, char *argv[])
 
                             pthread_t GameLogicAndBroadcastThread;
                             pthread_create(&GameLogicAndBroadcastThread, NULL, GameLogicAndBroadcast, &sessions[i]);
-                            pthread_detach(GameLogicAndBroadcastThread);
                         }
                         break;
                     }
