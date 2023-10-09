@@ -344,7 +344,7 @@ void *GameLogicAndBroadcast(void *arg)
 
         if (winner != 3)
         {
-            printf("Player %d wins in session %d!\n", winner, session->sessionId);
+            printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
 
             session->numClients = 0;
             session->gameStarted = 0;
@@ -463,7 +463,6 @@ int main(int argc, char *argv[])
                         newClient.address = clientAddress;
                         newClient.sessionId = i;
                         sessions[i].clients[sessions[i].numClients] = newClient;
-                        printf("Cliente con nombre %s \n", nickname);
 
                         char playerNumber[2];
                         snprintf(playerNumber, sizeof(playerNumber), "%d", newClient.playerNumber);
