@@ -52,7 +52,7 @@ typedef struct
 {
     char message[9];
     struct sockaddr_in addressFromClient;
-    Session* sessions[MAX_SESSIONS];
+    Session *sessions[MAX_SESSIONS];
 } Message;
 
 GameState InitGame(GameState game)
@@ -352,13 +352,11 @@ void *GameLogicAndBroadcast(void *arg)
         }
         else
         {
-#if 0
             snprintf(message, sizeof(message), "GameState %d %d %d %d %d %d %d %d",
                      session->gameState.ballX, session->gameState.ballY,
                      session->gameState.ballDx, session->gameState.ballDy,
                      session->gameState.paddle1Y, session->gameState.paddle2Y,
                      session->gameState.score1, session->gameState.score2);
-#endif
 
             for (int j = 0; j < session->numClients; j++)
             {
@@ -369,47 +367,11 @@ void *GameLogicAndBroadcast(void *arg)
                 }
             }
 
-            // printf("Broadcast: %s\n", message);
-
             usleep(100000);
         }
     }
 
     return NULL;
-}
-
-void *ClientMessageProcessing(void *arg)
-{
-    Message *msg = (Message *)arg;
-    int numSession;
-
-    for (int i = 0; i < MAX_SESSIONS; i++)
-    {
-        for (int j = 0; i < 2; i++)
-        {
-            if (memcmp(&msg->addressFromClient.sin_addr, &msg->sessions[i]->clients[j].address.sin_addr, sizeof(struct in_addr)) == 1 && &msg->addressFromClient.sin_port == &msg->sessions[i]->clients[j].address.sin_port)
-            {
-                numSession = i;
-                break;
-            }
-        }
-    }
-
-    int number, player;
-    if (sscanf(msg->message, "Move %d %d", &number, &player) == 2)
-    {
-        if (player == 0 || player == 1)
-        {
-            printf("Player %d moved paddle %d\n", player, number);
-
-            msg->sessions[numSession]->gameState = MovePaddle(number, player, msg->sessions[numSession]->gameState);
-        }
-        else
-        {
-            printf("Invalid player number: %d\n", player);
-        }
-    }
-    pthread_exit(NULL);
 }
 
 int main(int argc, char *argv[])
@@ -531,19 +493,33 @@ int main(int argc, char *argv[])
             }
             else
             {
-                Message newMessage;
-
-                newMessage.addressFromClient = clientAddress;
-                strncpy(newMessage.message, buffer, sizeof(newMessage.message));
+                int numSession;
                 for (int i = 0; i < MAX_SESSIONS; i++)
                 {
-                    newMessage.sessions[i] = &sessions[i];
+                    for (int j = 0; i < 2; i++)
+                    {
+                        if (memcmp(&clientAddress.sin_addr, &sessions[i].clients[j].address.sin_addr, sizeof(struct in_addr)) == 1 && clientAddress.sin_port == sessions[i].clients[j].address.sin_port)
+                        {
+                            numSession = i;
+                            break;
+                        }
+                    }
                 }
 
-                pthread_t ClientMessageProcessingThread;
+                int number, player;
+                if (sscanf(buffer, "Move %d %d", &number, &player) == 2)
+                {
+                    if (player == 0 || player == 1)
+                    {
+                        printf("Player %d moved paddle %d\n", player, number);
 
-                pthread_create(&ClientMessageProcessingThread, NULL, ClientMessageProcessing, &newMessage);
-                pthread_detach(ClientMessageProcessingThread);
+                        sessions[numSession].gameState = MovePaddle(number, player, sessions[numSession].gameState);
+                    }
+                    else
+                    {
+                        printf("Invalid player number: %d\n", player);
+                    }
+                }
             }
         }
     }
