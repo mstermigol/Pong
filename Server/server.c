@@ -494,31 +494,34 @@ int main(int argc, char *argv[])
             else
             {
                 int numSession;
+
+
                 for (int i = 0; i < MAX_SESSIONS; i++)
                 {
-                    for (int j = 0; i < 2; i++)
+                    for (int j = 0; j < 2; j++)
                     {
-                        if (memcmp(&clientAddress.sin_addr, &sessions[i].clients[j].address.sin_addr, sizeof(struct in_addr)) == 1 && clientAddress.sin_port == sessions[i].clients[j].address.sin_port)
+                        if (memcmp(&clientAddress.sin_addr, &sessions[i].clients[j].address.sin_addr, sizeof(struct in_addr)) == 0 && clientAddress.sin_port == sessions[i].clients[j].address.sin_port)
+
                         {
+
                             numSession = i;
+                            printf("Se escogio %d\n", i);
                             break;
                         }
                     }
                 }
+
 
                 int number, player;
                 if (sscanf(buffer, "Move %d %d", &number, &player) == 2)
                 {
                     if (player == 0 || player == 1)
                     {
-                        printf("Player %d moved paddle %d\n", player, number);
+                        printf("Player %d with number %d in session %d, moved a paddle\n", player, number, numSession);
 
                         sessions[numSession].gameState = MovePaddle(number, player, sessions[numSession].gameState);
                     }
-                    else
-                    {
-                        printf("Invalid player number: %d\n", player);
-                    }
+
                 }
             }
         }
