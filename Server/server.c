@@ -9,6 +9,8 @@
 #include <pthread.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <time.h>
+#include <stdarg.h>
 
 #define MAX_SESSIONS 2
 #define MAX_NICKNAME_LEN 20
@@ -21,6 +23,7 @@
 #define PADDLE_2_X 620
 #define BALL_WIDTH 10
 #define BALL_HEIGHT 10
+#define LOG_FILE "log.txt"
 
 typedef struct
 {
@@ -68,6 +71,31 @@ GameState InitGame(GameState game)
 
     return game;
 }
+
+void logMessage(const char *format, ...) {
+    time_t current_time;
+    char *time_string;
+
+    current_time = time(NULL);
+    time_string = ctime(&current_time);
+    time_string[strlen(time_string) - 1] = '\0';
+
+    va_list args;
+    va_start(args, format);
+
+    FILE *logFile = fopen(LOG_FILE, "a");
+    if (logFile != NULL) {
+        fprintf(logFile, "[%s] ", time_string);
+        vfprintf(logFile, format, args);
+        fprintf(logFile, "\n");
+        fclose(logFile);
+    } else {
+        perror("Error opening log file");
+    }
+
+    va_end(args);
+}
+
 
 GameState MovePaddle(int upOrDown, int player, GameState game)
 {
@@ -334,15 +362,48 @@ void *GameLogicAndBroadcast(void *arg)
 
     Session *session = (Session *)arg;
 
+    int checkScore1 = 0;
+    int checkScore2 = 0;
+
     while (session->gameStarted > 0)
     {
         session->gameState = MoveBall(session->gameState);
 
         int winner = CheckScore(session);
 
+        snprintf(message, sizeof(message), "GameState %d %d %d %d %d %d %d %d",
+                 session->gameState.ballX, session->gameState.ballY,
+                 session->gameState.ballDx, session->gameState.ballDy,
+                 session->gameState.paddle1Y, session->gameState.paddle2Y,
+                 session->gameState.score1, session->gameState.score2);
+
+        for (int j = 0; j < session->numClients; j++)
+        {
+            ssize_t bytesSent = sendto(session->serverSocket, message, strlen(message), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
+            if (bytesSent == -1)
+            {
+                perror("Send error");
+            }
+        }
+
+        if (session->gameState.score1 > checkScore1)
+        {
+            logMessage("%s scored a point in session %d\n", session->clients[0].name, session->sessionId);
+            //printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
+            checkScore1 = session->gameState.score1;
+        }
+
+        if (session->gameState.score2 > checkScore2)
+        {
+            logMessage("%s scored a point in session %d\n", session->clients[1].name, session->sessionId);
+            //printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
+            checkScore2 = session->gameState.score2;
+        }
+
         if (winner != 3)
         {
-            printf("Player %d wins in session %d!\n", winner, session->sessionId);
+            logMessage("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
+            //printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
 
             session->numClients = 0;
             session->gameStarted = 0;
@@ -351,25 +412,8 @@ void *GameLogicAndBroadcast(void *arg)
             session->gameState.score2 = 0;
             pthread_exit(NULL);
         }
-        else
-        {
-            snprintf(message, sizeof(message), "GameState %d %d %d %d %d %d %d %d",
-                     session->gameState.ballX, session->gameState.ballY,
-                     session->gameState.ballDx, session->gameState.ballDy,
-                     session->gameState.paddle1Y, session->gameState.paddle2Y,
-                     session->gameState.score1, session->gameState.score2);
 
-            for (int j = 0; j < session->numClients; j++)
-            {
-                ssize_t bytesSent = sendto(session->serverSocket, message, strlen(message), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
-                if (bytesSent == -1)
-                {
-                    perror("Send error");
-                }
-            }
-
-            usleep(100000);
-        }
+        usleep(100000);
     }
 
     return NULL;
@@ -454,6 +498,8 @@ int main(int argc, char *argv[])
                     {
                         char nickname[MAX_NICKNAME_LEN];
                         Client newClient;
+                        strncpy(nickname, buffer + 5, MAX_NICKNAME_LEN);
+                        nickname[MAX_NICKNAME_LEN] = '\0';
                         strncpy(newClient.name, nickname, MAX_NICKNAME_LEN);
                         newClient.playerNumber = sessions[i].numClients;
                         newClient.address = clientAddress;
@@ -470,12 +516,14 @@ int main(int argc, char *argv[])
 
                         sessions[i].numClients++;
 
-                        printf("Client %s connected as Player %d, %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
+                        logMessage("%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
+                        //printf("%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
 
                         if (sessions[i].numClients == 2)
                         {
                             sessions[i].gameStarted = 1;
-                            printf("Game started in session %d!\n", sessions[i].sessionId);
+                            logMessage("Game started in session %d!\n", sessions[i].sessionId);
+                            //printf("Game started in session %d!\n", sessions[i].sessionId);
 
                             pthread_t GameLogicAndBroadcastThread;
                             pthread_create(&GameLogicAndBroadcastThread, NULL, GameLogicAndBroadcast, &sessions[i]);
@@ -486,7 +534,9 @@ int main(int argc, char *argv[])
                     {
                         if (i == MAX_SESSIONS - 1)
                         {
-                            printf("No space available. Ignoring client request.\n");
+
+                            logMessage("No space available. Ignoring client request.\n");
+                            //printf("No space available. Ignoring client request.\n");
                         }
                     }
                 }
@@ -494,7 +544,7 @@ int main(int argc, char *argv[])
             else
             {
                 int numSession;
-
+                int numClient;
 
                 for (int i = 0; i < MAX_SESSIONS; i++)
                 {
@@ -503,25 +553,23 @@ int main(int argc, char *argv[])
                         if (memcmp(&clientAddress.sin_addr, &sessions[i].clients[j].address.sin_addr, sizeof(struct in_addr)) == 0 && clientAddress.sin_port == sessions[i].clients[j].address.sin_port)
 
                         {
-
                             numSession = i;
-                            printf("Se escogio %d\n", i);
+                            numClient = j;
                             break;
                         }
                     }
                 }
-
 
                 int number, player;
                 if (sscanf(buffer, "Move %d %d", &number, &player) == 2)
                 {
                     if (player == 0 || player == 1)
                     {
-                        printf("Player %d with number %d in session %d, moved a paddle\n", player, number, numSession);
+                        logMessage("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
+                        //printf("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
 
                         sessions[numSession].gameState = MovePaddle(number, player, sessions[numSession].gameState);
                     }
-
                 }
             }
         }
