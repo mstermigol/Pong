@@ -11,20 +11,8 @@
 #include <pthread.h>
 #include <sys/socket.h>
 #include "Protocol/scc.h"
-
-#define MAX_NICKNAME_LENGTH 20
-
-#define PADDLE_1_X 20
-#define PADDLE_2_X SCREEN_WIDTH - 20 - PADDLE_WIDTH
-
-#define PADDLE_WIDTH 10
-#define PADDLE_HEIGHT 100
-
-#define BALL_WIDTH 10
-#define BALL_HEIGHT 10
-
-int SCREEN_WIDTH = 640;
-int SCREEN_HEIGHT = 480;
+#include "../headers/gamestate.h"
+#include "../headers/config.h"
 
 typedef struct
 {
@@ -386,8 +374,8 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	char nickname[MAX_NICKNAME_LENGTH];
-	strncpy(nickname, argv[3], MAX_NICKNAME_LENGTH);
+	char nickname[MAX_NICKNAME_LEN];
+	strncpy(nickname, argv[3], MAX_NICKNAME_LEN);
 
 	char initialMessage[1024];
 	snprintf(initialMessage, sizeof(initialMessage), "name %s", nickname);
