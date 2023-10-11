@@ -23,6 +23,7 @@
 #define PADDLE_2_X 620
 #define BALL_WIDTH 10
 #define BALL_HEIGHT 10
+#define LOG_FILE "log.txt"
 
 typedef struct
 {
@@ -70,6 +71,31 @@ GameState InitGame(GameState game)
 
     return game;
 }
+
+void logMessage(const char *format, ...) {
+    time_t current_time;
+    char *time_string;
+
+    current_time = time(NULL);
+    time_string = ctime(&current_time);
+    time_string[strlen(time_string) - 1] = '\0';
+
+    va_list args;
+    va_start(args, format);
+
+    FILE *logFile = fopen(LOG_FILE, "a");
+    if (logFile != NULL) {
+        fprintf(logFile, "[%s] ", time_string);
+        vfprintf(logFile, format, args);
+        fprintf(logFile, "\n");
+        fclose(logFile);
+    } else {
+        perror("Error opening log file");
+    }
+
+    va_end(args);
+}
+
 
 GameState MovePaddle(int upOrDown, int player, GameState game)
 {
@@ -362,19 +388,22 @@ void *GameLogicAndBroadcast(void *arg)
 
         if (session->gameState.score1 > checkScore1)
         {
-            printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
+            logMessage("%s scored a point in session %d\n", session->clients[0].name, session->sessionId);
+            //printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
             checkScore1 = session->gameState.score1;
         }
 
         if (session->gameState.score2 > checkScore2)
         {
-            printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
+            logMessage("%s scored a point in session %d\n", session->clients[1].name, session->sessionId);
+            //printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
             checkScore2 = session->gameState.score2;
         }
 
         if (winner != 3)
         {
-            printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
+            logMessage("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
+            //printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
 
             session->numClients = 0;
             session->gameStarted = 0;
@@ -487,12 +516,14 @@ int main(int argc, char *argv[])
 
                         sessions[i].numClients++;
 
-                        printf("Client %s connected as Player %d, %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
+                        logMessage("%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
+                        //printf("%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
 
                         if (sessions[i].numClients == 2)
                         {
                             sessions[i].gameStarted = 1;
-                            printf("Game started in session %d!\n", sessions[i].sessionId);
+                            logMessage("Game started in session %d!\n", sessions[i].sessionId);
+                            //printf("Game started in session %d!\n", sessions[i].sessionId);
 
                             pthread_t GameLogicAndBroadcastThread;
                             pthread_create(&GameLogicAndBroadcastThread, NULL, GameLogicAndBroadcast, &sessions[i]);
@@ -503,7 +534,9 @@ int main(int argc, char *argv[])
                     {
                         if (i == MAX_SESSIONS - 1)
                         {
-                            printf("No space available. Ignoring client request.\n");
+
+                            logMessage("No space available. Ignoring client request.\n");
+                            //printf("No space available. Ignoring client request.\n");
                         }
                     }
                 }
@@ -532,7 +565,8 @@ int main(int argc, char *argv[])
                 {
                     if (player == 0 || player == 1)
                     {
-                        printf("Client %s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
+                        logMessage("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
+                        //printf("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
 
                         sessions[numSession].gameState = MovePaddle(number, player, sessions[numSession].gameState);
                     }
