@@ -13,5 +13,6 @@ GameState InitGame(GameState game);
 GameState MoveBall(GameState game);
 int CheckCollision(GameState game, int player);
 GameState MovePaddle(int upOrDown, int player, GameState game);
+GameState deserializeGameState(char *buffer, GameState game);
 
 #endif // GAMESTATE_H
