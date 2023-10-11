@@ -342,6 +342,21 @@ void *GameLogicAndBroadcast(void *arg)
 
         int winner = CheckScore(session);
 
+        int checkScore1 = 0;
+        int checkScore2 = 0;
+
+        if(session->gameState.score1 > checkScore1)
+        {
+            printf("%s scored a point in session %d", session->clients->name, session->sessionId);
+            checkScore1 = session->gameState.score1;
+        }
+
+        if(session->gameState.score2 > checkScore2)
+        {
+            printf("%s scored a point in session %d", session->clients->name, session->sessionId);
+            checkScore2 = session->gameState.score2;
+        }
+
         if (winner != 3)
         {
             printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
