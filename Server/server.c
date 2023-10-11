@@ -347,13 +347,13 @@ void *GameLogicAndBroadcast(void *arg)
 
         if(session->gameState.score1 > checkScore1)
         {
-            printf("%s scored a point in session %d", session->clients->name, session->sessionId);
+            printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
             checkScore1 = session->gameState.score1;
         }
 
         if(session->gameState.score2 > checkScore2)
         {
-            printf("%s scored a point in session %d", session->clients->name, session->sessionId);
+            printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
             checkScore2 = session->gameState.score2;
         }
 
