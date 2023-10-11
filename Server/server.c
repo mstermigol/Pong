@@ -336,22 +336,37 @@ void *GameLogicAndBroadcast(void *arg)
 
     Session *session = (Session *)arg;
 
+    int checkScore1 = 0;
+    int checkScore2 = 0;
+
     while (session->gameStarted > 0)
     {
         session->gameState = MoveBall(session->gameState);
 
         int winner = CheckScore(session);
 
-        int checkScore1 = 0;
-        int checkScore2 = 0;
+        snprintf(message, sizeof(message), "GameState %d %d %d %d %d %d %d %d",
+                 session->gameState.ballX, session->gameState.ballY,
+                 session->gameState.ballDx, session->gameState.ballDy,
+                 session->gameState.paddle1Y, session->gameState.paddle2Y,
+                 session->gameState.score1, session->gameState.score2);
 
-        if(session->gameState.score1 > checkScore1)
+        for (int j = 0; j < session->numClients; j++)
+        {
+            ssize_t bytesSent = sendto(session->serverSocket, message, strlen(message), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
+            if (bytesSent == -1)
+            {
+                perror("Send error");
+            }
+        }
+
+        if (session->gameState.score1 > checkScore1)
         {
             printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
             checkScore1 = session->gameState.score1;
         }
 
-        if(session->gameState.score2 > checkScore2)
+        if (session->gameState.score2 > checkScore2)
         {
             printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
             checkScore2 = session->gameState.score2;
@@ -368,25 +383,8 @@ void *GameLogicAndBroadcast(void *arg)
             session->gameState.score2 = 0;
             pthread_exit(NULL);
         }
-        else
-        {
-            snprintf(message, sizeof(message), "GameState %d %d %d %d %d %d %d %d",
-                     session->gameState.ballX, session->gameState.ballY,
-                     session->gameState.ballDx, session->gameState.ballDy,
-                     session->gameState.paddle1Y, session->gameState.paddle2Y,
-                     session->gameState.score1, session->gameState.score2);
 
-            for (int j = 0; j < session->numClients; j++)
-            {
-                ssize_t bytesSent = sendto(session->serverSocket, message, strlen(message), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
-                if (bytesSent == -1)
-                {
-                    perror("Send error");
-                }
-            }
-
-            usleep(100000);
-        }
+        usleep(100000);
     }
 
     return NULL;
@@ -515,8 +513,6 @@ int main(int argc, char *argv[])
                 int numSession;
                 int numClient;
 
-
-
                 for (int i = 0; i < MAX_SESSIONS; i++)
                 {
                     for (int j = 0; j < 2; j++)
@@ -531,7 +527,6 @@ int main(int argc, char *argv[])
                     }
                 }
 
-
                 int number, player;
                 if (sscanf(buffer, "Move %d %d", &number, &player) == 2)
                 {
@@ -541,7 +536,6 @@ int main(int argc, char *argv[])
 
                         sessions[numSession].gameState = MovePaddle(number, player, sessions[numSession].gameState);
                     }
-
                 }
             }
         }
