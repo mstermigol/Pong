@@ -1,360 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/time.h>
 #include <pthread.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <time.h>
-#include <stdarg.h>
-
-#define MAX_SESSIONS 2
-#define MAX_NICKNAME_LEN 20
-#define WINNING_SCORE 5
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
-#define PADDLE_WIDTH 10
-#define PADDLE_HEIGHT 50
-#define PADDLE_1_X 10
-#define PADDLE_2_X 620
-#define BALL_WIDTH 10
-#define BALL_HEIGHT 10
-#define LOG_FILE "log.txt"
-
-typedef struct
-{
-    int ballX, ballY;
-    int ballDx, ballDy;
-    int paddle1Y, paddle2Y;
-    int score1, score2;
-} GameState;
-
-typedef struct
-{
-    int sessionId;
-    char name[MAX_NICKNAME_LEN];
-    struct sockaddr_in address;
-    int playerNumber;
-} Client;
-
-typedef struct
-{
-    int sessionId;
-    int gameStarted;
-    GameState gameState;
-    Client clients[2];
-    int numClients;
-    int serverSocket;
-} Session;
-
-typedef struct
-{
-    char message[9];
-    struct sockaddr_in addressFromClient;
-    Session *sessions[MAX_SESSIONS];
-} Message;
-
-GameState InitGame(GameState game)
-{
-
-    game.ballX = SCREEN_WIDTH / 2;
-    game.ballY = SCREEN_HEIGHT / 2;
-    game.ballDy = 1;
-    game.ballDx = 1;
-
-    game.paddle1Y = SCREEN_HEIGHT / 2 - 50;
-    game.paddle2Y = SCREEN_HEIGHT / 2 - 50;
-
-    return game;
-}
-
-void logMessage(const char *format, ...) {
-    time_t current_time;
-    char *time_string;
-
-    current_time = time(NULL);
-    time_string = ctime(&current_time);
-    time_string[strlen(time_string) - 1] = '\0';
-
-    va_list args;
-    va_start(args, format);
-
-    FILE *logFile = fopen(LOG_FILE, "a");
-    if (logFile != NULL) {
-        fprintf(logFile, "[%s] ", time_string);
-        vfprintf(logFile, format, args);
-        fprintf(logFile, "\n");
-        fclose(logFile);
-    } else {
-        perror("Error opening log file");
-    }
-
-    va_end(args);
-}
-
-
-GameState MovePaddle(int upOrDown, int player, GameState game)
-{
-    if (player == 0)
-    {
-        if (upOrDown == 0)
-        {
-            if (game.paddle1Y >= SCREEN_HEIGHT - PADDLE_HEIGHT)
-            {
-                game.paddle1Y = SCREEN_HEIGHT - PADDLE_HEIGHT;
-            }
-            else
-            {
-                game.paddle1Y += 5;
-            }
-        }
-        if (upOrDown == 1)
-        {
-            if (game.paddle1Y <= 0)
-            {
-                game.paddle1Y = 0;
-            }
-            else
-            {
-                game.paddle1Y -= 5;
-            }
-        }
-    }
-    else
-    {
-        if (upOrDown == 0)
-        {
-            if (game.paddle2Y >= SCREEN_HEIGHT - PADDLE_HEIGHT)
-            {
-                game.paddle2Y = SCREEN_HEIGHT - PADDLE_HEIGHT;
-            }
-            else
-            {
-                game.paddle2Y += 5;
-            }
-        }
-        if (upOrDown == 1)
-        {
-            if (game.paddle2Y <= 0)
-            {
-                game.paddle2Y = 0;
-            }
-            else
-            {
-                game.paddle2Y -= 5;
-            }
-        }
-    }
-    return game;
-}
-
-int CheckCollision(GameState game, int player)
-{
-    int paddleY;
-    int paddleX;
-
-    if (player == 0)
-    {
-        paddleY = game.paddle1Y;
-        paddleX = PADDLE_1_X;
-    }
-    else
-    {
-        paddleY = game.paddle2Y;
-        paddleX = PADDLE_2_X;
-    }
-
-    int leftOfTheBall, leftOfPaddle;
-    int rightOfTheBall, rightOfPaddle;
-    int topOfTheBall, topOfThePaddle;
-    int bottomOfTheBall, bottomOfThePaddle;
-
-    leftOfTheBall = game.ballX;
-    rightOfTheBall = game.ballX + BALL_WIDTH;
-    topOfTheBall = game.ballY;
-    bottomOfTheBall = game.ballY + BALL_HEIGHT;
-
-    leftOfPaddle = paddleX;
-    rightOfPaddle = paddleX + PADDLE_WIDTH;
-    topOfThePaddle = paddleY;
-    bottomOfThePaddle = paddleY + PADDLE_HEIGHT;
-
-    if (leftOfTheBall > rightOfPaddle)
-    {
-        return 0;
-    }
-    if (rightOfTheBall < leftOfPaddle)
-    {
-        return 0;
-    }
-    if (topOfTheBall > bottomOfThePaddle)
-    {
-        return 0;
-    }
-    if (bottomOfTheBall < topOfThePaddle)
-    {
-        return 0;
-    }
-    return 1;
-}
-
-GameState MoveBall(GameState game)
-{
-    game.ballX += game.ballDx;
-    game.ballY += game.ballDy;
-
-    if (game.ballX < 0)
-    {
-
-        game.score2 += 1;
-        game = InitGame(game);
-    }
-
-    if (game.ballX > SCREEN_WIDTH - 10)
-    {
-
-        game.score1 += 1;
-        game = InitGame(game);
-    }
-
-    if (game.ballY < 0 || game.ballY > SCREEN_HEIGHT - 10)
-    {
-
-        game.ballDy = -game.ballDy;
-    }
-
-    int player;
-
-    for (player = 0; player < 2; player++)
-    {
-        int paddle;
-
-        if (player == 0)
-        {
-            paddle = game.paddle1Y;
-        }
-        else
-        {
-            paddle = game.paddle2Y;
-        }
-
-        int collision = CheckCollision(game, player);
-
-        if (collision == 1)
-        {
-
-            if (game.ballDx < 0)
-            {
-
-                game.ballDx -= 1;
-            }
-            else
-            {
-
-                game.ballDx += 1;
-            }
-
-            game.ballDx = -game.ballDx;
-
-            int hitPosition = (paddle + PADDLE_HEIGHT) - game.ballY;
-
-            if (hitPosition >= 0 && hitPosition < 7)
-            {
-                game.ballDy = 4;
-            }
-
-            if (hitPosition >= 7 && hitPosition < 14)
-            {
-                game.ballDy = 3;
-            }
-
-            if (hitPosition >= 14 && hitPosition < 21)
-            {
-                game.ballDy = 2;
-            }
-
-            if (hitPosition >= 21 && hitPosition < 28)
-            {
-                game.ballDy = 1;
-            }
-
-            if (hitPosition >= 28 && hitPosition < 32)
-            {
-                game.ballDy = 0;
-            }
-
-            if (hitPosition >= 32 && hitPosition < 39)
-            {
-                game.ballDy = -1;
-            }
-
-            if (hitPosition >= 39 && hitPosition < 46)
-            {
-                game.ballDy = -2;
-            }
-
-            if (hitPosition >= 46 && hitPosition < 53)
-            {
-                game.ballDy = -3;
-            }
-
-            if (hitPosition >= 53 && hitPosition <= 60)
-            {
-                game.ballDy = -4;
-            }
-
-            if (game.ballDx > 0)
-            {
-
-                if (game.ballX < 30)
-                {
-
-                    game.ballX = 30;
-                }
-            }
-            else
-            {
-
-                if (game.ballX > 600)
-                {
-
-                    game.ballX = 600;
-                }
-            }
-        }
-    }
-
-    return game;
-}
-
-void UpdatePaddlePosition(Session *session, int playerNumber, int paddleY)
-{
-    if (playerNumber == 0)
-    {
-        session->gameState.paddle1Y += paddleY;
-    }
-    else if (playerNumber == 1)
-    {
-        session->gameState.paddle2Y += paddleY;
-    }
-}
-
-int CheckScore(Session *session)
-{
-    if (session->gameState.score1 >= WINNING_SCORE)
-    {
-        return 0;
-    }
-    else if (session->gameState.score2 >= WINNING_SCORE)
-    {
-        return 1;
-    }
-    return 3;
-}
+#include "../headers/gamestate.h"
+#include "../headers/config.h"
+#include "../headers/client.h"
+#include "../headers/session.h"
+#include "../headers/message.h"
 
 void *GameLogicAndBroadcast(void *arg)
 {
@@ -389,21 +42,21 @@ void *GameLogicAndBroadcast(void *arg)
         if (session->gameState.score1 > checkScore1)
         {
             logMessage("%s scored a point in session %d\n", session->clients[0].name, session->sessionId);
-            //printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
+            // printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
             checkScore1 = session->gameState.score1;
         }
 
         if (session->gameState.score2 > checkScore2)
         {
             logMessage("%s scored a point in session %d\n", session->clients[1].name, session->sessionId);
-            //printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
+            // printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
             checkScore2 = session->gameState.score2;
         }
 
         if (winner != 3)
         {
             logMessage("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
-            //printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
+            // printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
 
             session->numClients = 0;
             session->gameStarted = 0;
@@ -517,13 +170,13 @@ int main(int argc, char *argv[])
                         sessions[i].numClients++;
 
                         logMessage("%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
-                        //printf("%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
+                        // printf("%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
 
                         if (sessions[i].numClients == 2)
                         {
                             sessions[i].gameStarted = 1;
                             logMessage("Game started in session %d!\n", sessions[i].sessionId);
-                            //printf("Game started in session %d!\n", sessions[i].sessionId);
+                            // printf("Game started in session %d!\n", sessions[i].sessionId);
 
                             pthread_t GameLogicAndBroadcastThread;
                             pthread_create(&GameLogicAndBroadcastThread, NULL, GameLogicAndBroadcast, &sessions[i]);
@@ -536,7 +189,7 @@ int main(int argc, char *argv[])
                         {
 
                             logMessage("No space available. Ignoring client request.\n");
-                            //printf("No space available. Ignoring client request.\n");
+                            // printf("No space available. Ignoring client request.\n");
                         }
                     }
                 }
@@ -566,7 +219,7 @@ int main(int argc, char *argv[])
                     if (player == 0 || player == 1)
                     {
                         logMessage("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
-                        //printf("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
+                        // printf("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
 
                         sessions[numSession].gameState = MovePaddle(number, player, sessions[numSession].gameState);
                     }
@@ -577,8 +230,4 @@ int main(int argc, char *argv[])
 
     close(serverSocket);
     return 0;
-}
-
-GameState deserializeMoveBall(){
-
 }
