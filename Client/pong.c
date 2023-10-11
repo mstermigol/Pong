@@ -10,6 +10,7 @@
 #include <ncurses.h>
 #include <pthread.h>
 #include <sys/socket.h>
+#include "Protocol/scc.h"
 
 #define MAX_NICKNAME_LENGTH 20
 

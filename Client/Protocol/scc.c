@@ -1,39 +1,80 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "scc.h"
 
-const char *Send(char *gameState, int ballX, int allY, int paddle1Y, int paddle2Y)
+typedef struct
 {
-    char returnString[1000];
-    sprintf(returnString, "%s %d %d %d %d /", gameState, ballX, allY, paddle1Y, paddle2Y);
-    return returnString;
+    int ballX, ballY;
+    int ballDx, ballDy;
+    int paddle1Y, paddle2Y;
+    int score1, score2;
+} GameState;
+
+char *Send(GameState game)
+{
+    char *buffer = malloc(1000);
+    sprintf(buffer, "GameState %d %d %d %d %d %d %d", game.ballX, game.ballY, game.ballDx, game.ballDy, game.paddle1Y, game.paddle2Y, game.score1, game.score2);
+    return buffer;
 }
 
-const char *Send(char *move, int direction, int player)
+char *Send(int upOrDown, int player)
 {
-    char returnString[1000];
-    sprintf(returnString, "%s %d %d /", move, direction, player);
-    return returnString;
+    char *buffer = malloc(1000);
+    sprintf(buffer, "Move %d %d", upOrDown, player);
+    return buffer;
 }
 
-const char *Receive(char *protocol)
+char *Send(int state)
 {
-    char *protocolArray[1000];
+    if (state == 0 || state == 1)
+    {
+        char *buffer = malloc(1000);
+        sprintf(buffer, "Player %d", state);
+        return buffer;
+    }
+    else if (state == 2)
+    {
+        char *buffer = malloc(1000);
+        sprintf(buffer, "Start");
+        return buffer;
+    }
+    else if (state == 3)
+    {
+        char *buffer = malloc(1000);
+        sprintf(buffer, "End");
+        return buffer;
+    }
+}
+
+int Recieve(char *buffer)
+{
+    char *bufferArray[1000];
     int i = 0;
-    char *word = strtok(protocol, " ");
+    char *word = strtok(buffer, " ");
     while (word != NULL)
     {
-        protocolArray[i++] = word;
+        bufferArray[i++] = word;
         word = strtok(NULL, " ");
     }
-    if (strcmp(protocolArray[0], "GameState") == 0)
+    if (strcmp(bufferArray[0], "Player") == 0)
     {
-        char *gameState[100];
-        return (gameState, "%s %s %s %s", protocolArray[1], protocolArray[2], protocolArray[3], protocolArray[4]);
+        return 1;
     }
-    else if (strcmp(protocolArray[0], "Move") == 0)
+    else if (strcmp(bufferArray[0], "Start") == 0)
     {
-        char *move[100];
-        return (move, "%s %s", protocolArray[1], protocolArray[2]);
+        return 2;
+    }
+    else if (strcmp(bufferArray[0], "GameState") == 0)
+    {
+        return 3;
+    }
+    else if (strcmp(bufferArray[0], "Move") == 0)
+    {
+        return 4;
+    }
+    else if (strcmp(bufferArray[0], "End") == 0)
+    {
+        return 5;
     }
 }
