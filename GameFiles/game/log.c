@@ -1,4 +1,4 @@
-#include "../headers/message.h"
+#include "../headers/log.h"
 #include "../headers/config.h"
 #include <stdarg.h>
 #include <stdio.h>
