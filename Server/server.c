@@ -7,7 +7,7 @@
 #include "../headers/config.h"
 #include "../headers/client.h"
 #include "../headers/session.h"
-#include "../headers/message.h"
+#include "../headers/log.h"
 
 void *GameLogicAndBroadcast(void *arg)
 {
