@@ -25,7 +25,6 @@ char *SendName(const char *name)
     return buffer;
 }
 
-
 char *SendState(int state)
 {
     if (state == 0 || state == 1)
@@ -77,7 +76,8 @@ int Receive(char *buffer)
     else if (strcmp(bufferArray[0], "End") == 0)
     {
         return 5;
-    }else if (strcmp(bufferArray[0], "Name") == 0)
+    }
+    else if (strcmp(bufferArray[0], "Name") == 0)
     {
         return 6;
     }
