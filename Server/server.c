@@ -15,8 +15,19 @@
 void *GameLogicAndBroadcast(void *arg)
 {
     char message[256];
-
+    char *StartMessage = SendState(2);
+    char *EndMessage = SendState(3);
     Session *session = (Session *)arg;
+
+    for (int j = 0; j < session->numClients; j++)
+    {
+        ssize_t bytesSent = sendto(session->serverSocket, StartMessage, strlen(StartMessage), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
+        if (bytesSent == -1)
+        {
+            perror("Send error");
+        }
+        printf("Sent start message to %s\n", session->clients[j].name);
+    }
 
     int checkScore1 = 0;
     int checkScore2 = 0;
@@ -61,6 +72,15 @@ void *GameLogicAndBroadcast(void *arg)
             logMessage("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
             // printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
 
+            for (int j = 0; j < session->numClients; j++)
+            {
+                ssize_t bytesSent = sendto(session->serverSocket, EndMessage, strlen(EndMessage), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
+                if (bytesSent == -1)
+                {
+                    perror("Send error");
+                }
+                printf("Sent start message to %s\n", session->clients[j].name);
+            }
             session->numClients = 0;
             session->gameStarted = 0;
             session->gameState = InitGame(session->gameState);
@@ -163,8 +183,7 @@ int main(int argc, char *argv[])
                         newClient.sessionId = i;
                         sessions[i].clients[sessions[i].numClients] = newClient;
 
-                        char playerNumber[10];
-                        snprintf(playerNumber, sizeof(playerNumber), "%d", newClient.playerNumber);
+                        char *playerNumber = SendState(newClient.playerNumber);
                         ssize_t bytesSent = sendto(serverSocket, playerNumber, strlen(playerNumber), 0, (struct sockaddr *)&newClient.address, sizeof(newClient.address));
                         if (bytesSent == -1)
                         {
@@ -219,7 +238,7 @@ int main(int argc, char *argv[])
 
                 int number, player;
                 if (messageType == 4)
-                {   
+                {
                     sscanf(buffer, "Move %d %d", &number, &player) == 2;
 
                     if (player == 0 || player == 1)
