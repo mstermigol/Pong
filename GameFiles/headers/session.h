@@ -14,7 +14,7 @@ typedef struct
     int serverSocket;
 } Session;
 
-void updatePaddlePosition(Session *session, int playerNumber, int paddlePosition);
-int checkScore(Session *session);
+void UpdatePaddlePosition(Session *session, int playerNumber, int paddlePosition);
+int CheckScore(Session *session);
 
 #endif // SESSION_H

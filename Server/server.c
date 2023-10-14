@@ -3,11 +3,14 @@
 #include <pthread.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <string.h>
+#include <unistd.h>
 #include "../headers/gamestate.h"
 #include "../headers/config.h"
 #include "../headers/client.h"
 #include "../headers/session.h"
 #include "../headers/log.h"
+#include "../Protocol/scc.h"
 
 void *GameLogicAndBroadcast(void *arg)
 {
