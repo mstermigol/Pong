@@ -16,7 +16,6 @@ void *GameLogicAndBroadcast(void *arg)
 {
     char message[256];
     char *StartMessage = SendState(2);
-    char *EndMessage = SendState(3);
     Session *session = (Session *)arg;
 
     for (int j = 0; j < session->numClients; j++)
@@ -71,6 +70,7 @@ void *GameLogicAndBroadcast(void *arg)
         {
             logMessage("Player %s wins (with player number %d) in session %d!\n", session->clients[winner].name, session->clients[winner].playerNumber ,session->sessionId);
             // printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
+            char *EndMessage = SendEnd(winner);
 
             for (int j = 0; j < session->numClients; j++)
             {

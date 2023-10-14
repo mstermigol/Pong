@@ -159,8 +159,7 @@ int main(int argc, char *argv[])
 			}
 			else if (protocolSelector == 5)
 			{
-				int winner = 1;
-				// int winner = atoi(buffer + 4);
+				int winner = atoi(buffer + 4);
 				printf("winner: %d\n", winner);
 				DrawGameOver(winner);
 				usleep(5000000);

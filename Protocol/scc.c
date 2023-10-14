@@ -41,12 +41,13 @@ char *SendState(int state)
         sprintf(buffer, "Start");
         return buffer;
     }
-    else if (state == 3)
-    {
-        char *buffer = malloc(1000);
-        sprintf(buffer, "End");
-        return buffer;
-    }
+}
+
+char *SendEnd(int player)
+{
+    char *buffer = malloc(1000);
+    sprintf(buffer, "End %d", player);
+    return buffer;
 }
 
 int Receive(char *buffer)
