@@ -29,7 +29,7 @@ void *GameLogicAndBroadcast(void *arg)
 
         char *result = SendGame(session->gameState);
 
-        strncpy(message, result, sizeof(message) - 1);
+        strncpy(message, result, sizeof(message));
 
         message[sizeof(message)] = '\0';
 
