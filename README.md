@@ -3,7 +3,7 @@
 Para compilar el pong se debe correr el siguiente comando desde la carpeta "Client"
 
 ```
-gcc pong.c `sdl2-config --cflags --libs` -o pong
+gcc -I "../GameFiles/headers" -o pong pong.c  "../GameFiles/game/gamestate.c" "../GameFiles/game/log.c" "../GameFiles/game/session.c" "../Protocol/scc.c" "../GameFiles/game/draw.c" -lpthread `sdl2-config --cflags --libs`
 ```
 
 Para compilar el servidor se debe correr el siguiente comando desde la carpeta "Server"
