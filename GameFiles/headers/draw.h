@@ -5,14 +5,14 @@
 #include "config.h"
 #include <SDL2/SDL.h>
 
-SDL_Window *window = NULL;
-SDL_Renderer *renderer;
-SDL_Texture *screenTexture;
-SDL_Surface *screen;
-SDL_Surface *title;
-SDL_Surface *end;
-SDL_Surface *numbermap;
-SDL_Texture *screen_texture;
+extern SDL_Window *window;
+extern SDL_Renderer *renderer;
+extern SDL_Texture *screenTexture;
+extern SDL_Surface *screen;
+extern SDL_Surface *title;
+extern SDL_Surface *end;
+extern SDL_Surface *numbermap;
+extern SDL_Texture *screen_texture;
 
 int Init(int width, int height);
 void DrawMenu();

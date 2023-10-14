@@ -1,4 +1,15 @@
 #include "../headers/draw.h"
+#include <SDL2/SDL.h>
+
+SDL_Window *window = NULL;
+SDL_Renderer *renderer;
+SDL_Texture *screenTexture;
+SDL_Surface *screen;
+SDL_Surface *title;
+SDL_Surface *end;
+SDL_Surface *numbermap;
+SDL_Texture *screen_texture;
+
 
 int Init(int width, int height)
 {

@@ -1,9 +1,13 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
-#include "Protocol/scc.h"
+#include <unistd.h>
+#include <SDL2/SDL.h>
+#include "../Protocol/scc.h"
 #include "../headers/gamestate.h"
 #include "../headers/config.h"
 #include "../headers/draw.h"
+#include "../headers/client.h"
+
 
 int main(int argc, char *argv[])
 {
@@ -65,8 +69,9 @@ int main(int argc, char *argv[])
 
 		return 0;
 	}
-
-	SDL_GetWindowSize(window, &SCREEN_WIDTH, &SCREEN_HEIGHT);
+	int screenWidth = SCREEN_WIDTH;
+	int screenHeight = SCREEN_HEIGHT;
+	SDL_GetWindowSize(window, &screenWidth, &screenHeight);
 
 	while (1)
 	{
