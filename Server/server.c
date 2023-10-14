@@ -69,7 +69,7 @@ void *GameLogicAndBroadcast(void *arg)
 
         if (winner != 3)
         {
-            logMessage("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
+            logMessage("Player %s wins (with player number %d) in session %d!\n", session->clients[winner].name, session->clients[winner].playerNumber ,session->sessionId);
             // printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
 
             for (int j = 0; j < session->numClients; j++)

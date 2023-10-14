@@ -3,10 +3,10 @@
 #include <unistd.h>
 #include <SDL2/SDL.h>
 #include "../Protocol/scc.h"
-#include "../headers/gamestate.h"
-#include "../headers/config.h"
-#include "../headers/draw.h"
-#include "../headers/client.h"
+#include "../GameFiles/headers/gamestate.h"
+#include "../GameFiles//headers/config.h"
+#include "../GameFiles//headers/draw.h"
+#include "../GameFiles//headers/client.h"
 
 int main(int argc, char *argv[])
 {
