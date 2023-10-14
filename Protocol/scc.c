@@ -2,30 +2,23 @@
 #include <string.h>
 #include <stdlib.h>
 #include "scc.h"
+#include "../GameFiles/headers/gamestate.h"
 
-typedef struct
-{
-    int ballX, ballY;
-    int ballDx, ballDy;
-    int paddle1Y, paddle2Y;
-    int score1, score2;
-} GameState;
-
-char *Send(GameState game)
+char *SendGame(GameState game)
 {
     char *buffer = malloc(1000);
     sprintf(buffer, "GameState %d %d %d %d %d %d %d", game.ballX, game.ballY, game.ballDx, game.ballDy, game.paddle1Y, game.paddle2Y, game.score1, game.score2);
     return buffer;
 }
 
-char *Send(int upOrDown, int player)
+char *SendMove(int upOrDown, int player)
 {
     char *buffer = malloc(1000);
     sprintf(buffer, "Move %d %d", upOrDown, player);
     return buffer;
 }
 
-char *Send(int state)
+char *SendState(int state)
 {
     if (state == 0 || state == 1)
     {

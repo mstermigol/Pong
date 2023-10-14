@@ -1,5 +1,6 @@
 #include "../headers/gamestate.h"
 #include "../headers/config.h"
+#include <stdio.h>
 
 GameState InitGame(GameState game)
 {
