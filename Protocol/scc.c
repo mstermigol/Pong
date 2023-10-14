@@ -7,7 +7,7 @@
 char *SendGame(GameState game)
 {
     char *buffer = malloc(1000);
-    sprintf(buffer, "GameState %d %d %d %d %d %d %d", game.ballX, game.ballY, game.ballDx, game.ballDy, game.paddle1Y, game.paddle2Y, game.score1, game.score2);
+    sprintf(buffer, "GameState %d %d %d %d %d %d %d %d", game.ballX, game.ballY, game.ballDx, game.ballDy, game.paddle1Y, game.paddle2Y, game.score1, game.score2);
     return buffer;
 }
 
