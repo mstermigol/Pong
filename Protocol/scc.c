@@ -50,35 +50,23 @@ char *SendState(int state)
 
 int Receive(char *buffer)
 {
-    char *bufferArray[1000];
-    int i = 0;
-    char *word = strtok(buffer, " ");
-    while (word != NULL)
-    {
-        bufferArray[i++] = word;
-        word = strtok(NULL, " ");
-    }
-    if (strcmp(bufferArray[0], "Player") == 0)
-    {
+    if (strncmp(buffer, "Player", 6) == 0) {
         return 1;
     }
-    else if (strcmp(bufferArray[0], "Start") == 0)
-    {
+    else if (strncmp(buffer, "Start", 5) == 0) {
         return 2;
     }
-    else if (strcmp(bufferArray[0], "GameState") == 0)
-    {
+    else if (strncmp(buffer, "GameState", 9) == 0) {
         return 3;
     }
-    else if (strcmp(bufferArray[0], "Move") == 0)
-    {
+    else if (strncmp(buffer, "Move", 4) == 0) {
         return 4;
     }
-    else if (strcmp(bufferArray[0], "End") == 0)
-    {
+    else if (strncmp(buffer, "End", 3) == 0) {
         return 5;
-    }else if (strcmp(bufferArray[0], "Name") == 0)
-    {
+    }
+    else if (strncmp(buffer, "Name", 4) == 0) {
         return 6;
     }
+    return 0;
 }
