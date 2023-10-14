@@ -40,7 +40,7 @@ char *SendState(int state)
     }
 }
 
-int Recieve(char *buffer)
+int Receive(char *buffer)
 {
     char *bufferArray[1000];
     int i = 0;
