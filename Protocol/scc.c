@@ -18,6 +18,14 @@ char *SendMove(int upOrDown, int player)
     return buffer;
 }
 
+char *SendName(const char *name)
+{
+    char *buffer = malloc(1000);
+    sprintf(buffer, "Name %s", name);
+    return buffer;
+}
+
+
 char *SendState(int state)
 {
     if (state == 0 || state == 1)
@@ -69,5 +77,8 @@ int Receive(char *buffer)
     else if (strcmp(bufferArray[0], "End") == 0)
     {
         return 5;
+    }else if (strcmp(bufferArray[0], "Name") == 0)
+    {
+        return 6;
     }
 }
