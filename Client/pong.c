@@ -44,8 +44,6 @@ int main(int argc, char *argv[])
 
 	char nickname[MAX_NICKNAME_LEN];
 	strncpy(nickname, argv[3], MAX_NICKNAME_LEN);
-	char nickname[MAX_NICKNAME_LEN];
-	strncpy(nickname, argv[3], MAX_NICKNAME_LEN);
 
 	char *initialMessage = SendName(nickname);
 
@@ -57,13 +55,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	char playerNumberAux[1024];
-	int bytesReceived = recvfrom(clientSocket, playerNumberAux, sizeof(playerNumberAux), 0,
-								 (struct sockaddr *)&serverAddress, &serverLen);
-
-	int playerNumber = atoi(playerNumberAux);
-	printf("Player number: %d\n", playerNumber);
-
 	if (Init(SCREEN_WIDTH, SCREEN_HEIGHT) == 1)
 	{
 
@@ -74,6 +65,7 @@ int main(int argc, char *argv[])
 	SDL_GetWindowSize(window, &screenWidth, &screenHeight);
 
 	int gameStatus = 0;
+	int playerNumber;
 
 	while (1)
 	{
@@ -105,6 +97,8 @@ int main(int argc, char *argv[])
 
 			buffer[bytesReceived] = '\0';
 
+			printf("buffer: %s\n", buffer);
+
 			int protocolSelector = Receive(buffer);
 
 			if (protocolSelector == 1)
@@ -116,7 +110,7 @@ int main(int argc, char *argv[])
 			{
 				gameStatus = 1;
 			}
-			else if (protocolSelector == 3)
+			else if (protocolSelector == 3 && gameStatus == 1)
 			{
 				game = deserializeGameState(buffer, game);
 				SDL_PumpEvents();
@@ -125,19 +119,17 @@ int main(int argc, char *argv[])
 
 				if (keystate[SDL_SCANCODE_UP])
 				{
-					char message;
-					message = SendMove(1, playerNumber);
-					sendto(clientSocket, message, strlen(message), 0,
-						   (struct sockaddr *)&serverAddress, serverLen);
+					char *message = SendMove(1, playerNumber);
+					sendto(clientSocket, message, strlen(message), 0, (struct sockaddr *)&serverAddress, serverLen);
+					free(message);
 					printf("Sent: %s\n", message);
 				}
 
 				if (keystate[SDL_SCANCODE_DOWN])
 				{
-					char message;
-					message = SendMove(0, playerNumber);
-					sendto(clientSocket, message, strlen(message), 0,
-						   (struct sockaddr *)&serverAddress, serverLen);
+					char *message = SendMove(0, playerNumber);
+					sendto(clientSocket, message, strlen(message), 0, (struct sockaddr *)&serverAddress, serverLen);
+					free(message);
 				}
 
 				SDL_RenderClear(renderer);
@@ -167,8 +159,12 @@ int main(int argc, char *argv[])
 			}
 			else if (protocolSelector == 5)
 			{
-				int winner = atoi(buffer + 4);
+				int winner = 1;
+				// int winner = atoi(buffer + 4);
+				printf("winner: %d\n", winner);
 				DrawGameOver(winner);
+				usleep(5000000);
+				break;
 			}
 			else if (strncmp(buffer, "GameState ", 9) == 0)
 			{

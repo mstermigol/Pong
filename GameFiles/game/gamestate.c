@@ -254,7 +254,7 @@ GameState deserializeGameState(char *buffer, GameState game)
 {
     GameState aux;
 
-    printf("Buffer: %s\n", buffer);
+    //printf("Buffer: %s\n", buffer);
 
     if (sscanf(buffer, "GameState %d %d %d %d %d %d %d %d", &aux.ballX, &aux.ballY, &aux.ballDx, &aux.ballDy,
                &aux.paddle1Y, &aux.paddle2Y, &aux.score1, &aux.score2) == 8)
@@ -267,7 +267,7 @@ GameState deserializeGameState(char *buffer, GameState game)
         game.paddle2Y = aux.paddle2Y;
         game.score1 = aux.score1;
         game.score2 = aux.score2;
-        printf("GameState received\n");
+        //printf("GameState received\n");
     }
     return game;
 }
