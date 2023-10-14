@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define MAX_SESSIONS 2
+#define MAX_SESSIONS 3
 #define MAX_NICKNAME_LEN 20
 #define WINNING_SCORE 5
 #define SCREEN_WIDTH 640
