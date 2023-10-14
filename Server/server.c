@@ -69,7 +69,7 @@ void *GameLogicAndBroadcast(void *arg)
             pthread_exit(NULL);
         }
 
-        usleep(100000);
+        usleep(15000);
     }
 
     return NULL;
