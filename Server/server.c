@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
         {
             buffer[bytesReceived] = '\0';
 
-            if (strncmp(buffer, "name ", 5) == 0)
+            if (strncmp(buffer, "Name ", 5) == 0)
             {
                 for (int i = 0; i < MAX_SESSIONS; i++)
                 {

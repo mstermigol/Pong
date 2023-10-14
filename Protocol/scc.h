@@ -8,6 +8,8 @@ char *SendGame(GameState game);
 
 char *SendMove(int upOrDown, int player);
 
+char *SendName(const char *name);
+
 char *SendState(int state);
 
 int Receive(char *buffer);
