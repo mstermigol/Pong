@@ -8,7 +8,6 @@
 #include "../headers/draw.h"
 #include "../headers/client.h"
 
-
 int main(int argc, char *argv[])
 {
 	if (argc != 4)
@@ -46,8 +45,7 @@ int main(int argc, char *argv[])
 	char nickname[MAX_NICKNAME_LEN];
 	strncpy(nickname, argv[3], MAX_NICKNAME_LEN);
 
-	char initialMessage[1024];
-	snprintf(initialMessage, sizeof(initialMessage), "Name %s", nickname);
+	char *initialMessage = SendName(nickname);
 
 	if (sendto(clientSocket, initialMessage, strlen(initialMessage), 0,
 			   (struct sockaddr *)&serverAddress, serverLen) < 0)
@@ -56,13 +54,6 @@ int main(int argc, char *argv[])
 		close(clientSocket);
 		exit(1);
 	}
-
-	char playerNumberAux[1024];
-	int bytesReceived = recvfrom(clientSocket, playerNumberAux, sizeof(playerNumberAux), 0,
-								 (struct sockaddr *)&serverAddress, &serverLen);
-
-	int playerNumber = atoi(playerNumberAux);
-	printf("Player number: %d\n", playerNumber);
 
 	if (Init(SCREEN_WIDTH, SCREEN_HEIGHT) == 1)
 	{
@@ -73,8 +64,12 @@ int main(int argc, char *argv[])
 	int screenHeight = SCREEN_HEIGHT;
 	SDL_GetWindowSize(window, &screenWidth, &screenHeight);
 
+	int gameStatus = 0;
+	int playerNumber;
+
 	while (1)
 	{
+
 		FD_ZERO(&readFileDescriptors);
 		FD_SET(clientSocket, &readFileDescriptors);
 
@@ -91,7 +86,6 @@ int main(int argc, char *argv[])
 
 		if (FD_ISSET(clientSocket, &readFileDescriptors))
 		{
-			// Receive game state from server
 			char buffer[1024];
 			int bytesReceived = recvfrom(clientSocket, buffer, sizeof(buffer), 0,
 										 (struct sockaddr *)&serverAddress, &serverLen);
@@ -103,76 +97,100 @@ int main(int argc, char *argv[])
 
 			buffer[bytesReceived] = '\0';
 
-			if (strncmp(buffer, "GameState ", 9) == 0)
+			printf("buffer: %s\n", buffer);
+
+			int protocolSelector = Receive(buffer);
+
+			if (protocolSelector == 1)
+			{
+				gameStatus = 0;
+				playerNumber = atoi(buffer + 7);
+			}
+			else if (protocolSelector == 2)
+			{
+				gameStatus = 1;
+			}
+			else if (protocolSelector == 3 && gameStatus == 1)
 			{
 				game = deserializeGameState(buffer, game);
-
 				SDL_PumpEvents();
 
 				const Uint8 *keystate = SDL_GetKeyboardState(NULL);
 
 				if (keystate[SDL_SCANCODE_UP])
 				{
-					char message[1024];
-					snprintf(message, sizeof(message), "Move 1 %d", playerNumber);
-					sendto(clientSocket, message, strlen(message), 0,
-						   (struct sockaddr *)&serverAddress, serverLen);
+					char *message = SendMove(1, playerNumber);
+					sendto(clientSocket, message, strlen(message), 0, (struct sockaddr *)&serverAddress, serverLen);
+					free(message);
 					printf("Sent: %s\n", message);
 				}
 
 				if (keystate[SDL_SCANCODE_DOWN])
 				{
-					char message[1024];
-					snprintf(message, sizeof(message), "Move 0 %d", playerNumber);
-					sendto(clientSocket, message, strlen(message), 0,
-						   (struct sockaddr *)&serverAddress, serverLen);
-					printf("Sent: %s\n", message);
+					char *message = SendMove(0, playerNumber);
+					sendto(clientSocket, message, strlen(message), 0, (struct sockaddr *)&serverAddress, serverLen);
+					free(message);
 				}
 
 				SDL_RenderClear(renderer);
 				SDL_FillRect(screen, NULL, 0x00000000);
 
-				DrawNet();
+				DrawNet(game);
 
-				// draw paddles
 				DrawPaddle(game);
 
-				//* Put the ball on the screen.
 				DrawBall(game);
 
-				// draw the score
 				DrawPlayer1Score(game);
 
-				// draw the score
 				DrawPlayer2Score(game);
 
 				SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
-				// Copy the screen surface to the renderer
 				SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, screen);
 				SDL_RenderCopy(renderer, texture, NULL, NULL);
 				SDL_DestroyTexture(texture);
 
-				// Present the renderer to the screen
 				SDL_RenderPresent(renderer);
+			}
+			else if (protocolSelector == 4)
+			{
+				printf("Error: received move message from server\n");
+			}
+			else if (protocolSelector == 5)
+			{
+				int winner = 1;
+				// int winner = atoi(buffer + 4);
+				printf("winner: %d\n", winner);
+				DrawGameOver(winner);
+				usleep(5000000);
+				break;
+			}
+			else if (strncmp(buffer, "GameState ", 9) == 0)
+			{
+				game = deserializeGameState(buffer, game);
+			}
+			else
+			{
+				printf("Error: received unknown message from server\n");
+			}
+			if (gameStatus == 0)
+			{
+				DrawMenu();
 			}
 		}
 	}
 
-	// Free the screen surface and renderer
 	SDL_FreeSurface(screen);
 	SDL_DestroyRenderer(renderer);
 	SDL_FreeSurface(title);
 	SDL_FreeSurface(numbermap);
 	SDL_FreeSurface(end);
 
-	// free renderer and all textures used with it
 	SDL_DestroyRenderer(renderer);
 
-	// destinationroy window
 	SDL_DestroyWindow(window);
 
-	// Quit SDL subsystems
 	SDL_Quit();
 
 	close(clientSocket);

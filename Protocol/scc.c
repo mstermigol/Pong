@@ -3,10 +3,12 @@
 #include <stdlib.h>
 #include "scc.h"
 #include "../GameFiles/headers/gamestate.h"
+#include "../GameFiles/headers/gamestate.h"
 
 char *SendGame(GameState game)
 {
     char *buffer = malloc(1000);
+    sprintf(buffer, "GameState %d %d %d %d %d %d %d %d", game.ballX, game.ballY, game.ballDx, game.ballDy, game.paddle1Y, game.paddle2Y, game.score1, game.score2);
     sprintf(buffer, "GameState %d %d %d %d %d %d %d %d", game.ballX, game.ballY, game.ballDx, game.ballDy, game.paddle1Y, game.paddle2Y, game.score1, game.score2);
     return buffer;
 }
@@ -24,7 +26,6 @@ char *SendName(const char *name)
     sprintf(buffer, "Name %s", name);
     return buffer;
 }
-
 
 char *SendState(int state)
 {

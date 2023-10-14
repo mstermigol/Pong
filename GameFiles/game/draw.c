@@ -10,7 +10,6 @@ SDL_Surface *end;
 SDL_Surface *numbermap;
 SDL_Texture *screen_texture;
 
-
 int Init(int width, int height)
 {
 
