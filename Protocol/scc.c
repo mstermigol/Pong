@@ -7,7 +7,7 @@
 char *SendGame(GameState game)
 {
     char *buffer = malloc(1000);
-    sprintf(buffer, "GameState %d %d %d %d %d %d %d", game.ballX, game.ballY, game.ballDx, game.ballDy, game.paddle1Y, game.paddle2Y, game.score1, game.score2);
+    sprintf(buffer, "GameState %d %d %d %d %d %d %d %d", game.ballX, game.ballY, game.ballDx, game.ballDy, game.paddle1Y, game.paddle2Y, game.score1, game.score2);
     return buffer;
 }
 
@@ -17,6 +17,14 @@ char *SendMove(int upOrDown, int player)
     sprintf(buffer, "Move %d %d", upOrDown, player);
     return buffer;
 }
+
+char *SendName(const char *name)
+{
+    char *buffer = malloc(1000);
+    sprintf(buffer, "Name %s", name);
+    return buffer;
+}
+
 
 char *SendState(int state)
 {
@@ -69,5 +77,8 @@ int Receive(char *buffer)
     else if (strcmp(bufferArray[0], "End") == 0)
     {
         return 5;
+    }else if (strcmp(bufferArray[0], "Name") == 0)
+    {
+        return 6;
     }
 }

@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 	strncpy(nickname, argv[3], MAX_NICKNAME_LEN);
 
 	char initialMessage[1024];
-	snprintf(initialMessage, sizeof(initialMessage), "name %s", nickname);
+	snprintf(initialMessage, sizeof(initialMessage), "Name %s", nickname);
 
 	if (sendto(clientSocket, initialMessage, strlen(initialMessage), 0,
 			   (struct sockaddr *)&serverAddress, serverLen) < 0)
