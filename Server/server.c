@@ -27,11 +27,11 @@ void *GameLogicAndBroadcast(void *arg)
 
         int winner = CheckScore(session);
 
-        snprintf(message, sizeof(message), "GameState %d %d %d %d %d %d %d %d",
-                 session->gameState.ballX, session->gameState.ballY,
-                 session->gameState.ballDx, session->gameState.ballDy,
-                 session->gameState.paddle1Y, session->gameState.paddle2Y,
-                 session->gameState.score1, session->gameState.score2);
+        char *result = SendGame(session->gameState);
+
+        strncpy(message, result, sizeof(message) - 1);
+
+        message[sizeof(message)] = '\0';
 
         for (int j = 0; j < session->numClients; j++)
         {
