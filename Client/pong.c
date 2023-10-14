@@ -44,6 +44,8 @@ int main(int argc, char *argv[])
 
 	char nickname[MAX_NICKNAME_LEN];
 	strncpy(nickname, argv[3], MAX_NICKNAME_LEN);
+	char nickname[MAX_NICKNAME_LEN];
+	strncpy(nickname, argv[3], MAX_NICKNAME_LEN);
 
 	char *initialMessage = SendName(nickname);
 
@@ -92,7 +94,6 @@ int main(int argc, char *argv[])
 
 		if (FD_ISSET(clientSocket, &readFileDescriptors))
 		{
-			// Receive game state from server
 			char buffer[1024];
 			int bytesReceived = recvfrom(clientSocket, buffer, sizeof(buffer), 0,
 										 (struct sockaddr *)&serverAddress, &serverLen);
