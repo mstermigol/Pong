@@ -145,8 +145,9 @@ int main(int argc, char *argv[])
         else
         {
             buffer[bytesReceived] = '\0';
+            int messageType = Receive(buffer);
 
-            if (strncmp(buffer, "Name ", 5) == 0)
+            if (messageType == 6)
             {
                 for (int i = 0; i < MAX_SESSIONS; i++)
                 {
@@ -162,7 +163,7 @@ int main(int argc, char *argv[])
                         newClient.sessionId = i;
                         sessions[i].clients[sessions[i].numClients] = newClient;
 
-                        char playerNumber[2];
+                        char playerNumber[10];
                         snprintf(playerNumber, sizeof(playerNumber), "%d", newClient.playerNumber);
                         ssize_t bytesSent = sendto(serverSocket, playerNumber, strlen(playerNumber), 0, (struct sockaddr *)&newClient.address, sizeof(newClient.address));
                         if (bytesSent == -1)
@@ -217,8 +218,10 @@ int main(int argc, char *argv[])
                 }
 
                 int number, player;
-                if (sscanf(buffer, "Move %d %d", &number, &player) == 2)
-                {
+                if (messageType == 4)
+                {   
+                    sscanf(buffer, "Move %d %d", &number, &player) == 2;
+
                     if (player == 0 || player == 1)
                     {
                         logMessage("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
