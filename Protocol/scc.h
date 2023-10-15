@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include "../GameFiles/headers/gamestate.h"
 
-
 char *SendGame(GameState game);
 
 char *SendMove(int upOrDown, int player);
