@@ -161,7 +161,18 @@ int main(int argc, char *argv[])
 			{
 				int winner = atoi(buffer + 4);
 				printf("winner: %d\n", winner);
+
+				SDL_RenderClear(renderer);
+				SDL_FillRect(screen, NULL, 0x00000000);
+
 				DrawGameOver(winner);
+
+				SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, screen);
+				SDL_RenderCopy(renderer, texture, NULL, NULL);
+				SDL_DestroyTexture(texture);
+
+				SDL_RenderPresent(renderer);
+
 				usleep(5000000);
 				break;
 			}
@@ -175,7 +186,16 @@ int main(int argc, char *argv[])
 			}
 			if (gameStatus == 0)
 			{
+				SDL_RenderClear(renderer);
+				SDL_FillRect(screen, NULL, 0x00000000);
+
 				DrawMenu();
+
+				SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, screen);
+				SDL_RenderCopy(renderer, texture, NULL, NULL);
+				SDL_DestroyTexture(texture);
+
+				SDL_RenderPresent(renderer);
 			}
 		}
 	}
