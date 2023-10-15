@@ -1,187 +1,218 @@
+#include <arpa/inet.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <SDL2/SDL.h>
+#include "../Protocol/scc.h"
+#include "../GameFiles/headers/gamestate.h"
+#include "../GameFiles//headers/config.h"
+#include "../GameFiles//headers/draw.h"
+#include "../GameFiles//headers/client.h"
 
-// Using libs SDL, glibc
-#include "SDL2/SDL.h" //SDL version 2.0
-#include <stdlib.h>
-#include <stdio.h>
-
-#include "resources/config.h"
-#include "resources/score.h"
-#include "resources/game.h"
-#include "resources/collision.h"
-#include "resources/ball.h"
-#include "resources/paddle.h"
-#include "resources/draw.h"
-
-int Init(int w, int h, int argc, char *args[]);
-
-int main(int argc, char *args[])
+int main(int argc, char *argv[])
 {
+	if (argc != 4)
+	{
+		fprintf(stderr, "Usage: %s [IP] [PORT] [NICKNAME]\n", argv[0]);
+		exit(1);
+	}
 
-	// SDL Window setup
-	if (Init(SCREEN_WIDTH, SCREEN_HEIGHT, argc, args) == 1)
+	int clientSocket;
+	struct sockaddr_in serverAddress;
+	socklen_t serverLen = sizeof(serverAddress);
+
+	clientSocket = socket(AF_INET, SOCK_DGRAM, 0);
+	if (clientSocket < 0)
+	{
+		perror("Socket creation error");
+		exit(1);
+	}
+
+	fd_set readFileDescriptors;
+	int maxFileDescriptors = clientSocket + 1;
+
+	GameState game;
+
+	memset(&serverAddress, 0, sizeof(serverAddress));
+	serverAddress.sin_family = AF_INET;
+	serverAddress.sin_port = htons(atoi(argv[2]));
+	if (inet_pton(AF_INET, argv[1], &serverAddress.sin_addr) <= 0)
+	{
+		perror("Invalid server IP address");
+		close(clientSocket);
+		exit(1);
+	}
+
+	char nickname[MAX_NICKNAME_LEN];
+	strncpy(nickname, argv[3], MAX_NICKNAME_LEN);
+
+	char *initialMessage = SendName(nickname);
+
+	if (sendto(clientSocket, initialMessage, strlen(initialMessage), 0,
+			   (struct sockaddr *)&serverAddress, serverLen) < 0)
+	{
+		perror("Error sending data");
+		close(clientSocket);
+		exit(1);
+	}
+
+	if (Init(SCREEN_WIDTH, SCREEN_HEIGHT) == 1)
 	{
 
 		return 0;
 	}
+	int screenWidth = SCREEN_WIDTH;
+	int screenHeight = SCREEN_HEIGHT;
+	SDL_GetWindowSize(window, &screenWidth, &screenHeight);
 
-	// get the size of the window
-	int width, height;
-	SDL_GetWindowSize(window, &width, &height);
+	int gameStatus = 0;
+	int playerNumber;
 
-	int sleep = 0;
-	int quit = 0;
-	int state = 0;
-	int r = 0;
-	int moveY;
-	Uint32 nextGameTick = SDL_GetTicks();
-
-	GameState game;
-
-	// Initialize the ball position data.
-	game = InitGame(game);
-
-	// render loop
-	while (quit == 0)
+	while (1)
 	{
 
-		// check for new events every frame
-		SDL_PumpEvents();
+		FD_ZERO(&readFileDescriptors);
+		FD_SET(clientSocket, &readFileDescriptors);
 
-		const Uint8 *keystate = SDL_GetKeyboardState(NULL);
+		struct timeval timeout;
+		timeout.tv_sec = 1;
+		timeout.tv_usec = 0;
 
-		if (keystate[SDL_SCANCODE_ESCAPE])
+		int activity = select(maxFileDescriptors, &readFileDescriptors, NULL, NULL, &timeout);
+		if (activity < 0)
 		{
-
-			quit = 1;
+			perror("Select error");
+			exit(1);
 		}
 
-		if (keystate[SDL_SCANCODE_DOWN])
+		if (FD_ISSET(clientSocket, &readFileDescriptors))
 		{
-
-			game = MovePaddle(0, 1, game);
-		}
-
-		if (keystate[SDL_SCANCODE_S])
-		{
-
-			game = MovePaddle(0, 0, game);
-		}
-
-		if (keystate[SDL_SCANCODE_UP])
-		{
-
-			game = MovePaddle(1, 1, game);
-		}
-
-		if (keystate[SDL_SCANCODE_W])
-		{
-
-			game = MovePaddle(1, 0, game);
-		}
-
-		// draw background
-		SDL_RenderClear(renderer);
-		SDL_FillRect(screen, NULL, 0x000000ff);
-
-		// display main menu
-		if (state == 0)
-		{
-
-			if (keystate[SDL_SCANCODE_SPACE])
+			char buffer[1024];
+			int bytesReceived = recvfrom(clientSocket, buffer, sizeof(buffer), 0,
+										 (struct sockaddr *)&serverAddress, &serverLen);
+			if (bytesReceived < 0)
 			{
-
-				state = 1;
+				perror("Error receiving data");
+				continue;
 			}
 
-			// draw menu
-			DrawMenu();
+			buffer[bytesReceived] = '\0';
 
-			// display gameover
-		}
-		else if (state == 2)
-		{
+			printf("buffer: %s\n", buffer);
 
-			if (keystate[SDL_SCANCODE_SPACE])
+			int protocolSelector = Receive(buffer);
+
+			if (protocolSelector == 1)
 			{
-				state = 0;
-				// delay for a little bit so the space bar press dosnt get triggered twice
-				// while the main menu is showing
-				SDL_Delay(500);
+				gameStatus = 0;
+				playerNumber = atoi(buffer + 7);
 			}
-
-			// draw game over screen
-			DrawGameOver(r);
-
-			// display the game
-		}
-		else if (state == 1)
-		{
-
-			// check score
-			r = CheckScore(game.score1, game.score2);
-
-			// if either player wins, change to game over state
-			if (r == 1)
+			else if (protocolSelector == 2)
 			{
-
-				state = 2;
+				gameStatus = 1;
 			}
-			else if (r == 2)
+			else if (protocolSelector == 3 && gameStatus == 1)
 			{
+				game = deserializeGameState(buffer, game);
+				SDL_PumpEvents();
 
-				state = 2;
+				const Uint8 *keystate = SDL_GetKeyboardState(NULL);
+
+				if (keystate[SDL_SCANCODE_UP])
+				{
+					char *message = SendMove(1, playerNumber);
+					sendto(clientSocket, message, strlen(message), 0, (struct sockaddr *)&serverAddress, serverLen);
+					free(message);
+					printf("Sent: %s\n", message);
+				}
+
+				if (keystate[SDL_SCANCODE_DOWN])
+				{
+					char *message = SendMove(0, playerNumber);
+					sendto(clientSocket, message, strlen(message), 0, (struct sockaddr *)&serverAddress, serverLen);
+					free(message);
+				}
+
+				SDL_RenderClear(renderer);
+				SDL_FillRect(screen, NULL, 0x00000000);
+
+				DrawNet(game);
+
+				DrawPaddle(game);
+
+				DrawBall(game);
+
+				DrawPlayer1Score(game);
+
+				DrawPlayer2Score(game);
+
+				SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+
+				SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, screen);
+				SDL_RenderCopy(renderer, texture, NULL, NULL);
+				SDL_DestroyTexture(texture);
+
+				SDL_RenderPresent(renderer);
 			}
+			else if (protocolSelector == 4)
+			{
+				printf("Error: received move message from server\n");
+			}
+			else if (protocolSelector == 5)
+			{
+				int winner = atoi(buffer + 4);
+				printf("winner: %d\n", winner);
 
-			//* Move the balls for the next frame.
-			game = MoveBall(game);
+				SDL_RenderClear(renderer);
+				SDL_FillRect(screen, NULL, 0x00000000);
 
-			// draw net
-			DrawNet();
+				DrawGameOver(winner);
 
-			// draw paddles
-			DrawPaddle(game);
+				SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, screen);
+				SDL_RenderCopy(renderer, texture, NULL, NULL);
+				SDL_DestroyTexture(texture);
 
-			//* Put the ball on the screen.
-			DrawBall(game);
+				SDL_RenderPresent(renderer);
 
-			// draw the score
-			DrawPlayer1Score(game);
+				usleep(5000000);
+				break;
+			}
+			else if (strncmp(buffer, "GameState ", 9) == 0)
+			{
+				game = deserializeGameState(buffer, game);
+			}
+			else
+			{
+				printf("Error: received unknown message from server\n");
+			}
+			if (gameStatus == 0)
+			{
+				SDL_RenderClear(renderer);
+				SDL_FillRect(screen, NULL, 0x00000000);
 
-			// draw the score
-			DrawPlayer2Score(game);
-		}
+				DrawMenu();
 
-		SDL_UpdateTexture(screenTexture, NULL, screen->pixels, screen->w * sizeof(Uint32));
-		SDL_RenderCopy(renderer, screenTexture, NULL, NULL);
+				SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, screen);
+				SDL_RenderCopy(renderer, texture, NULL, NULL);
+				SDL_DestroyTexture(texture);
 
-		// draw to the display
-		SDL_RenderPresent(renderer);
-
-		// time it takes to render  frame in milliseconds
-		nextGameTick += 1000 / 60;
-		sleep = nextGameTick - SDL_GetTicks();
-
-		if (sleep >= 0)
-		{
-
-			SDL_Delay(sleep);
+				SDL_RenderPresent(renderer);
+			}
 		}
 	}
 
-	// free loaded images
 	SDL_FreeSurface(screen);
+	SDL_DestroyRenderer(renderer);
 	SDL_FreeSurface(title);
 	SDL_FreeSurface(numbermap);
 	SDL_FreeSurface(end);
 
-	// free renderer and all textures used with it
 	SDL_DestroyRenderer(renderer);
 
-	// destinationroy window
 	SDL_DestroyWindow(window);
 
-	// Quit SDL subsystems
 	SDL_Quit();
+
+	close(clientSocket);
 
 	return 0;
 }

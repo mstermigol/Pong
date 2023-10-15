@@ -1,8 +1,5 @@
-#ifndef DRAW_H
-#define DRAW_H
-
+#include "../headers/draw.h"
 #include <SDL2/SDL.h>
-#include "config.h"
 
 SDL_Window *window = NULL;
 SDL_Renderer *renderer;
@@ -11,8 +8,9 @@ SDL_Surface *screen;
 SDL_Surface *title;
 SDL_Surface *end;
 SDL_Surface *numbermap;
+SDL_Texture *screen_texture;
 
-int Init(int width, int height, int argc, char *args[])
+int Init(int width, int height)
 {
 
     // Initialize SDL
@@ -26,21 +24,7 @@ int Init(int width, int height, int argc, char *args[])
 
     int i;
 
-    for (i = 0; i < argc; i++)
-    {
-
-        // Create window
-        if (strcmp(args[i], "-f"))
-        {
-
-            SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN, &window, &renderer);
-        }
-        else
-        {
-
-            SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_FULLSCREEN_DESKTOP, &window, &renderer);
-        }
-    }
+    SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN, &window, &renderer);
 
     if (window == NULL)
     {
@@ -113,7 +97,7 @@ int Init(int width, int height, int argc, char *args[])
     return 0;
 }
 
-static void DrawGameOver(int p)
+void DrawGameOver(int p)
 {
 
     SDL_Rect player1;
@@ -155,7 +139,7 @@ static void DrawGameOver(int p)
     }
 }
 
-static void DrawMenu()
+void DrawMenu()
 {
 
     SDL_Rect source;
@@ -174,7 +158,7 @@ static void DrawMenu()
     SDL_BlitSurface(title, &source, screen, &destination);
 }
 
-static void DrawNet()
+void DrawNet()
 {
 
     SDL_Rect net;
@@ -202,7 +186,7 @@ static void DrawNet()
     }
 }
 
-static void DrawBall(GameState game)
+void DrawBall(GameState game)
 {
 
     SDL_Rect source;
@@ -221,10 +205,11 @@ static void DrawBall(GameState game)
     }
 }
 
-static void DrawPaddle(GameState game)
+void DrawPaddle(GameState game)
 {
 
     SDL_Rect source;
+
     int i;
 
     for (i = 0; i < 2; i++)
@@ -253,7 +238,7 @@ static void DrawPaddle(GameState game)
     }
 }
 
-static void DrawPlayer1Score(GameState game)
+void DrawPlayer1Score(GameState game)
 {
 
     SDL_Rect source;
@@ -278,7 +263,7 @@ static void DrawPlayer1Score(GameState game)
     SDL_BlitSurface(numbermap, &source, screen, &destination);
 }
 
-static void DrawPlayer2Score(GameState game)
+void DrawPlayer2Score(GameState game)
 {
 
     SDL_Rect source;
@@ -302,5 +287,3 @@ static void DrawPlayer2Score(GameState game)
 
     SDL_BlitSurface(numbermap, &source, screen, &destination);
 }
-
-#endif // DRAW_H
