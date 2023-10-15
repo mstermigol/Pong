@@ -1,0 +1,56 @@
+[Sat Oct 14 23:15:55 2023] sosa connected as Player 0, in session 0
+
+[Sat Oct 14 23:16:05 2023] calvin connected as Player 1, in session 0
+
+[Sat Oct 14 23:16:05 2023] Game started in session 0!
+
+[Sat Oct 14 23:16:10 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:16:14 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:16:19 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:16:24 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:16:28 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:16:28 2023] Player sosa wins (with player number 0) in session 0!
+
+[Sat Oct 14 23:19:52 2023] sosa connected as Player 0, in session 0
+
+[Sat Oct 14 23:19:57 2023] calvin connected as Player 1, in session 0
+
+[Sat Oct 14 23:19:57 2023] Game started in session 0!
+
+[Sat Oct 14 23:20:02 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:20:06 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:20:11 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:20:16 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:20:21 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:20:21 2023] Player sosa wins (with player number 0) in session 0!
+
+[Sat Oct 14 23:23:54 2023] sosa connected as Player 0, in session 0
+
+[Sat Oct 14 23:23:59 2023] calvin connected as Player 1, in session 0
+
+[Sat Oct 14 23:23:59 2023] Game started in session 0!
+
+[Sat Oct 14 23:24:03 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:24:08 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:24:13 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:24:17 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:24:22 2023] sosa scored a point in session 0
+
+[Sat Oct 14 23:24:22 2023] Player calvin wins (with player number 1) in session 0!
+
+[Sat Oct 14 23:31:17 2023] sosa connected as Player 0, in session 0
+

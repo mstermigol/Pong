@@ -12,4 +12,6 @@ char *SendName(const char *name);
 
 char *SendState(int state);
 
+char *SendEnd(int player);
+
 int Receive(char *buffer);

@@ -17,11 +17,11 @@ int CheckScore(Session *session)
 {
     if (session->gameState.score1 >= WINNING_SCORE)
     {
-        return 0;
+        return 1;
     }
     else if (session->gameState.score2 >= WINNING_SCORE)
     {
-        return 1;
+        return 2;
     }
     return 3;
 }
