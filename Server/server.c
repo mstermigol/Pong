@@ -55,21 +55,21 @@ void *GameLogicAndBroadcast(void *arg)
         if (session->gameState.score1 > checkScore1)
         {
             logMessage("%s scored a point in session %d\n", session->clients[0].name, session->sessionId);
-            // printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
+            printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
             checkScore1 = session->gameState.score1;
         }
 
         if (session->gameState.score2 > checkScore2)
         {
             logMessage("%s scored a point in session %d\n", session->clients[1].name, session->sessionId);
-            // printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
+            printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
             checkScore2 = session->gameState.score2;
         }
 
         if (winner != 3)
         {
             logMessage("Player %s wins (with player number %d) in session %d!\n", session->clients[winner].name, session->clients[winner].playerNumber ,session->sessionId);
-            // printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
+            printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
             char *EndMessage = SendEnd(winner);
 
             for (int j = 0; j < session->numClients; j++)
@@ -193,13 +193,13 @@ int main(int argc, char *argv[])
                         sessions[i].numClients++;
 
                         logMessage("%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
-                        // printf("%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
+                        printf("%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
 
                         if (sessions[i].numClients == 2)
                         {
                             sessions[i].gameStarted = 1;
                             logMessage("Game started in session %d!\n", sessions[i].sessionId);
-                            // printf("Game started in session %d!\n", sessions[i].sessionId);
+                            printf("Game started in session %d!\n", sessions[i].sessionId);
 
                             pthread_t GameLogicAndBroadcastThread;
                             pthread_create(&GameLogicAndBroadcastThread, NULL, GameLogicAndBroadcast, &sessions[i]);
@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
                         {
 
                             logMessage("No space available. Ignoring client request.\n");
-                            // printf("No space available. Ignoring client request.\n");
+                            printf("No space available. Ignoring client request.\n");
                         }
                     }
                 }
@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
                     if (player == 0 || player == 1)
                     {
                         logMessage("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
-                        // printf("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
+                        printf("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
 
                         sessions[numSession].gameState = MovePaddle(number, player, sessions[numSession].gameState);
                     }
