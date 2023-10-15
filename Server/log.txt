@@ -52,3 +52,5 @@
 
 [Sat Oct 14 23:24:22 2023] Player calvin wins (with player number 1) in session 0!
 
+[Sat Oct 14 23:31:17 2023] sosa connected as Player 0, in session 0
+
