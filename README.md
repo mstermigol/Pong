@@ -88,5 +88,4 @@ The goal of the game is to score 5 points before your opponent does.
 
 ### Acknowledgments
 
-We used (and modified a little bit) the pong game in the following repo [flightcrank/pong](https://github.com/flightcrank/pong)
-We really appreciate the work of the author of this repo :)
+We used (and modified a little bit) the pong game in the following repo [flightcrank/pong](https://github.com/flightcrank/pong). We really appreciate the work of the author of this proyect :)
