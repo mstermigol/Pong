@@ -37,7 +37,7 @@ To run the server you must run the following command
 
 ```cmd
 
-./server <port>
+./server <port> <Log file>
 
 ```
 

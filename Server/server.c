@@ -23,8 +23,10 @@ void *GameLogicAndBroadcast(void *arg)
         ssize_t bytesSent = sendto(session->serverSocket, StartMessage, strlen(StartMessage), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
         if (bytesSent == -1)
         {
+            logMessage(session->fileName, "Send error");
             perror("Send error");
         }
+        logMessage(session->fileName, "Sent start message to %s\n", session->clients[j].name);
         printf("Sent start message to %s\n", session->clients[j].name);
     }
 
@@ -48,27 +50,28 @@ void *GameLogicAndBroadcast(void *arg)
             ssize_t bytesSent = sendto(session->serverSocket, message, strlen(message), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
             if (bytesSent == -1)
             {
+                logMessage(session->fileName, "Send error");
                 perror("Send error");
             }
         }
 
         if (session->gameState.score1 > checkScore1)
         {
-            logMessage("%s scored a point in session %d\n", session->clients[0].name, session->sessionId);
+            logMessage(session->fileName, "%s scored a point in session %d\n", session->clients[0].name, session->sessionId);
             printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
             checkScore1 = session->gameState.score1;
         }
 
         if (session->gameState.score2 > checkScore2)
         {
-            logMessage("%s scored a point in session %d\n", session->clients[1].name, session->sessionId);
+            logMessage(session->fileName, "%s scored a point in session %d\n", session->clients[1].name, session->sessionId);
             printf("%s scored a point in session %d\n", session->clients->name, session->sessionId);
             checkScore2 = session->gameState.score2;
         }
 
         if (winner != 3)
         {
-            logMessage("Player %s wins (with player number %d) in session %d!\n", session->clients[winner].name, session->clients[winner].playerNumber ,session->sessionId);
+            logMessage(session->fileName, "Player %s wins (with player number %d) in session %d!\n", session->clients[winner].name, session->clients[winner].playerNumber, session->sessionId);
             printf("Player %s wins in session %d!\n", session->clients[winner].name, session->sessionId);
             char *EndMessage = SendEnd(winner);
 
@@ -77,9 +80,11 @@ void *GameLogicAndBroadcast(void *arg)
                 ssize_t bytesSent = sendto(session->serverSocket, EndMessage, strlen(EndMessage), 0, (struct sockaddr *)&session->clients[j].address, sizeof(session->clients[j].address));
                 if (bytesSent == -1)
                 {
+                    logMessage(session->fileName, "Send error");
                     perror("Send error");
                 }
-                printf("Sent start message to %s\n", session->clients[j].name);
+                logMessage(session->fileName, "Sent end message to %s\n", session->clients[j].name);
+                printf("Sent end message to %s\n", session->clients[j].name);
             }
             session->numClients = 0;
             session->gameStarted = 0;
@@ -97,11 +102,24 @@ void *GameLogicAndBroadcast(void *arg)
 
 int main(int argc, char *argv[])
 {
-    if (argc != 2)
+    if (argc != 3)
     {
-        fprintf(stderr, "Usage: %s [port]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [port] [Log File]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
+
+    char *fileName = argv[2];
+
+    FILE *file = fopen(fileName, "a");
+
+    if (file == NULL)
+    {
+        logMessage(fileName, "File opening failed");
+        perror("File opening failed");
+        exit(EXIT_FAILURE);
+    }
+
+    fclose(file);
 
     int serverSocket;
     struct sockaddr_in serverAddress;
@@ -109,6 +127,7 @@ int main(int argc, char *argv[])
 
     if ((serverSocket = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
     {
+        logMessage(fileName, "Socket creation failed");
         perror("Socket creation failed");
         exit(EXIT_FAILURE);
     }
@@ -116,12 +135,14 @@ int main(int argc, char *argv[])
     int flags = fcntl(serverSocket, F_GETFL, 0);
     if (flags < 0)
     {
+        logMessage(fileName, "Failed to get socket flags");
         perror("Failed to get socket flags");
         close(serverSocket);
         exit(EXIT_FAILURE);
     }
     if (fcntl(serverSocket, F_SETFL, flags | O_NONBLOCK) < 0)
     {
+        logMessage(fileName, "Failed to set socket to non-blocking mode");
         perror("Failed to set socket to non-blocking mode");
         close(serverSocket);
         exit(EXIT_FAILURE);
@@ -134,11 +155,13 @@ int main(int argc, char *argv[])
 
     if (bind(serverSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
     {
+        logMessage(fileName, "Binding failed");
         perror("Binding failed");
         exit(EXIT_FAILURE);
     }
 
-    printf("Server started on port %d\n", atoi(argv[1]));
+    printf("Server started on port %d and the log is saved in the file %s\n", atoi(argv[1]), fileName);
+    logMessage(fileName, "Server started on port %d and the log is saved in the file %s\n", atoi(argv[1]), fileName);
 
     for (int i = 0; i < MAX_SESSIONS; i++)
     {
@@ -149,6 +172,7 @@ int main(int argc, char *argv[])
         sessions[i].gameState.score2 = 0;
         sessions[i].serverSocket = serverSocket;
         sessions[i].sessionId = i;
+        sessions[i].fileName = fileName;
     }
 
     while (1)
@@ -187,18 +211,19 @@ int main(int argc, char *argv[])
                         ssize_t bytesSent = sendto(serverSocket, playerNumber, strlen(playerNumber), 0, (struct sockaddr *)&newClient.address, sizeof(newClient.address));
                         if (bytesSent == -1)
                         {
+                            logMessage(fileName, "Send error");
                             perror("Send error");
                         }
 
                         sessions[i].numClients++;
 
-                        logMessage("%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
+                        logMessage(fileName, "%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
                         printf("%s connected as Player %d, in session %d\n", newClient.name, newClient.playerNumber, sessions[i].sessionId);
 
                         if (sessions[i].numClients == 2)
                         {
                             sessions[i].gameStarted = 1;
-                            logMessage("Game started in session %d!\n", sessions[i].sessionId);
+                            logMessage(fileName, "Game started in session %d!\n", sessions[i].sessionId);
                             printf("Game started in session %d!\n", sessions[i].sessionId);
 
                             pthread_t GameLogicAndBroadcastThread;
@@ -211,7 +236,7 @@ int main(int argc, char *argv[])
                         if (i == MAX_SESSIONS - 1)
                         {
 
-                            logMessage("No space available. Ignoring client request.\n");
+                            logMessage(fileName, "No space available. Ignoring client request.\n");
                             printf("No space available. Ignoring client request.\n");
                         }
                     }
@@ -243,7 +268,7 @@ int main(int argc, char *argv[])
 
                     if (player == 0 || player == 1)
                     {
-                        logMessage("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
+                        logMessage(fileName, "%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
                         printf("%s with player number %d moved %d the paddle in session %d\n", sessions[numSession].clients[numClient].name, player, number, numSession);
 
                         sessions[numSession].gameState = MovePaddle(number, player, sessions[numSession].gameState);

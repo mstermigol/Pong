@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-void logMessage(const char *format, ...)
+void logMessage(const char *fileName, const char *format, ...)
 {
     time_t current_time;
     char *time_string;
@@ -17,7 +17,7 @@ void logMessage(const char *format, ...)
     va_list args;
     va_start(args, format);
 
-    FILE *logFile = fopen(LOG_FILE, "a");
+    FILE *logFile = fopen(fileName, "a");
     if (logFile != NULL)
     {
         fprintf(logFile, "[%s] ", time_string);

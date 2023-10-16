@@ -12,6 +12,7 @@ typedef struct
     Client clients[2];
     int numClients;
     int serverSocket;
+    const char *fileName;
 } Session;
 
 void UpdatePaddlePosition(Session *session, int playerNumber, int paddlePosition);
