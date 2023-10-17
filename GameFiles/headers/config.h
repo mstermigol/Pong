@@ -12,6 +12,5 @@
 #define PADDLE_2_X 620
 #define BALL_WIDTH 10
 #define BALL_HEIGHT 10
-#define LOG_FILE "log.txt"
 
 #endif // CONFIG_H
