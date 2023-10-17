@@ -55,7 +55,7 @@ To execute the client you must run the following command
 
 ```cmd
 
-./client <ip> <port> <nickname>
+./pong <ip> <port> <nickname>
 
 ```
 
